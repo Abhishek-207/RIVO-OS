@@ -696,7 +696,7 @@ def lead_ingest(request):
     else:
         channel, _ = Channel.objects.get_or_create(
             name=channel_name,
-            defaults={'is_trusted': False, 'description': f'{channel_name} lead gen channel'},
+            defaults={'is_trusted': False, 'default_sla_minutes': 240, 'description': f'{channel_name} lead gen channel'},
         )
         if channel.is_trusted:
             return Response(
