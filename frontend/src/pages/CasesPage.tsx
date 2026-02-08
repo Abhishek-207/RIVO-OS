@@ -38,6 +38,7 @@ const stageColors: Record<CaseStage, string> = {
   submitted_to_bank: 'bg-blue-100 text-blue-700',
   under_review: 'bg-blue-200 text-blue-800',
   submitted_to_credit: 'bg-indigo-100 text-indigo-700',
+  preapproved: 'bg-teal-100 text-teal-700',
   valuation_initiated: 'bg-indigo-200 text-indigo-800',
   valuation_report_received: 'bg-violet-100 text-violet-700',
   fol_requested: 'bg-violet-200 text-violet-800',

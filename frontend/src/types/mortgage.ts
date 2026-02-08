@@ -42,6 +42,7 @@ export type CaseStage =
   | 'submitted_to_bank'
   | 'under_review'
   | 'submitted_to_credit'
+  | 'preapproved'
   | 'valuation_initiated'
   | 'valuation_report_received'
   | 'fol_requested'
@@ -708,6 +709,7 @@ export const ACTIVE_STAGES: CaseStage[] = [
   'submitted_to_bank',
   'under_review',
   'submitted_to_credit',
+  'preapproved',
   'valuation_initiated',
   'valuation_report_received',
   'fol_requested',
@@ -772,6 +774,7 @@ export const CASE_STAGE_LABELS: Record<CaseStage, string> = {
   submitted_to_bank: 'Submitted to Bank',
   under_review: 'Under Review',
   submitted_to_credit: 'Submitted to Credit',
+  preapproved: 'Preapproved',
   valuation_initiated: 'Valuation Initiated',
   valuation_report_received: 'Valuation Report Received',
   fol_requested: 'FOL Requested',

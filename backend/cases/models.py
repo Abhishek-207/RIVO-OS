@@ -32,6 +32,7 @@ class CaseStage(models.TextChoices):
     SUBMITTED_TO_BANK = 'submitted_to_bank', 'Submitted to Bank'
     UNDER_REVIEW = 'under_review', 'Under Review'
     SUBMITTED_TO_CREDIT = 'submitted_to_credit', 'Submitted to Credit'
+    PREAPPROVED = 'preapproved', 'Preapproved'
     VALUATION_INITIATED = 'valuation_initiated', 'Valuation Initiated'
     VALUATION_REPORT_RECEIVED = 'valuation_report_received', 'Valuation Report Received'
     FOL_REQUESTED = 'fol_requested', 'FOL Requested'
@@ -68,6 +69,7 @@ ACTIVE_STAGES = {
     CaseStage.SUBMITTED_TO_BANK,
     CaseStage.UNDER_REVIEW,
     CaseStage.SUBMITTED_TO_CREDIT,
+    CaseStage.PREAPPROVED,
     CaseStage.VALUATION_INITIATED,
     CaseStage.VALUATION_REPORT_RECEIVED,
     CaseStage.FOL_REQUESTED,
