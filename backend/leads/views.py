@@ -10,8 +10,9 @@ import logging
 from django.db.models import Q, F, ExpressionWrapper, DurationField
 from django.db.models.functions import Now
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import api_view, action, authentication_classes, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -24,6 +25,7 @@ from leads.models import (
     Lead, LeadStatus, CampaignStatus, LeadInteraction, LeadMessage,
     MessageDirection, LeadMessageStatus, LeadMessageType
 )
+from leads.services import LeadTrackingService
 from leads.serializers import (
     LeadChangeStatusSerializer,
     LeadCreateSerializer,
@@ -629,3 +631,142 @@ class LeadViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             logger.error(f'Failed to broadcast lead message to WebSocket: {e}')
+
+
+@csrf_exempt
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([])
+def lead_ingest(request):
+    """
+    Public lead ingestion endpoint for external form providers (Pabbly, Zapier, etc.).
+
+    POST /api/leads/ingest/
+    Body: {
+        "name": "John Doe",
+        "phone": "+971501234567",
+        "email": "john@example.com",    (optional)
+        "source": "Mortgage Q1 2026",
+        "channel": "Meta"
+    }
+
+    Rules:
+    - source (campaign name) MUST start with "Mortgage" (case-insensitive).
+    - If no Campaign record exists yet, one is auto-created.
+    - A Source is auto-created under an untrusted channel named by channel
+      (e.g. "WhatsApp", "Meta").
+    - Duplicate phone with active lead → updates existing lead.
+    - Duplicate phone with declined lead → reactivates it.
+    """
+    name = (request.data.get('name') or '').strip()
+    phone = (request.data.get('phone') or '').strip()
+    email = (request.data.get('email') or '').strip()
+    campaign_name = (request.data.get('source') or '').strip()
+    channel_name = (request.data.get('channel') or '').strip()
+
+    # --- Validation ---
+    errors = {}
+    if not name:
+        errors['name'] = 'Name is required.'
+    if not phone:
+        errors['phone'] = 'Phone is required.'
+    if not campaign_name:
+        errors['source'] = 'source is required.'
+    elif not campaign_name.lower().startswith('mortgage'):
+        errors['source'] = 'source must start with "Mortgage".'
+    if not channel_name:
+        errors['channel'] = 'channel is required.'
+
+    if errors:
+        return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    # --- Find or create Campaign ---
+    from campaigns.models import Campaign
+    from acquisition_channels.models import Channel, Source
+
+    campaign, _ = Campaign.objects.get_or_create(
+        name=campaign_name,
+        defaults={'is_active': True, 'description': f'Auto-created from lead ingest ({channel_name})'},
+    )
+
+    # --- Resolve source under an untrusted channel ---
+    if campaign.source_id:
+        source_id = str(campaign.source_id)
+    else:
+        channel, _ = Channel.objects.get_or_create(
+            name=channel_name,
+            defaults={'is_trusted': False, 'description': f'{channel_name} lead gen channel'},
+        )
+        if channel.is_trusted:
+            return Response(
+                {'error': f'Channel "{channel_name}" is trusted. Leads must go through an untrusted channel.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        source, _ = Source.objects.get_or_create(
+            channel=channel,
+            name=campaign_name,
+        )
+        campaign.source = source
+        campaign.save(update_fields=['source', 'updated_at'])
+        source_id = str(source.id)
+
+    # --- Duplicate check ---
+    existing_lead = LeadTrackingService.find_lead_by_phone(phone)
+    if existing_lead:
+        updated = []
+        if name and (not existing_lead.name or existing_lead.name == 'Unknown'):
+            existing_lead.name = name
+            updated.append('name')
+        if email and not existing_lead.email:
+            existing_lead.email = email
+            updated.append('email')
+
+        # Reactivate declined leads
+        if existing_lead.status == LeadStatus.DECLINED:
+            existing_lead.status = LeadStatus.ACTIVE
+            updated.append('status')
+
+        if updated:
+            existing_lead.save(update_fields=updated + ['updated_at'])
+
+        existing_lead.refresh_from_db()
+        return Response({
+            'lead_id': str(existing_lead.id),
+            'lead_name': existing_lead.name,
+            'created_at': existing_lead.created_at.isoformat(),
+            'updated_at': existing_lead.updated_at.isoformat(),
+        }, status=status.HTTP_200_OK)
+
+    # --- Create lead ---
+    try:
+        source_obj = Source.objects.get(id=source_id)
+
+        lead = Lead(
+            name=name,
+            phone=phone,
+            email=email or '',
+            source=source_obj,
+            campaign_status=CampaignStatus.SUBSCRIBER_PENDING,
+            current_tags=['subscriber_pending'],
+            first_response_at=timezone.now(),
+            last_response_at=timezone.now(),
+            response_count=0,
+        )
+        lead.save(force_insert=True, update_fields=None)
+
+        LeadTrackingService.broadcast_lead_update(lead, 'new_lead')
+
+        lead.refresh_from_db()
+        return Response({
+            'lead_id': str(lead.id),
+            'lead_name': lead.name,
+            'created_at': lead.created_at.isoformat(),
+            'updated_at': lead.updated_at.isoformat(),
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response(
+            {'error': f'Failed to create lead: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
