@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, action, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -636,7 +637,7 @@ class LeadViewSet(viewsets.ModelViewSet):
 @csrf_exempt
 @api_view(['POST'])
 @authentication_classes([])
-@permission_classes([])
+@permission_classes([AllowAny])
 def lead_ingest(request):
     """
     Public lead ingestion endpoint for external form providers (Pabbly, Zapier, etc.).
