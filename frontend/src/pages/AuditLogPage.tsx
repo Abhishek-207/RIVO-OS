@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react'
 import { useAuditLogs } from '@/hooks/useAudit'
 import { Pagination } from '@/components/Pagination'
 import {
@@ -8,8 +8,131 @@ import {
   TableContainer,
 } from '@/components/ui/TablePageLayout'
 import { cn } from '@/lib/utils'
-import type { AuditAction, AuditLogQueryParams } from '@/types/audit'
+import type { AuditAction, AuditLogQueryParams, AuditLogEntry } from '@/types/audit'
 import { AUDIT_ACTION_LABELS, TABLE_NAME_LABELS } from '@/types/audit'
+
+function formatTimestamp(timestamp: string) {
+  const date = new Date(timestamp)
+  return date.toLocaleString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+  })
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return 'empty'
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  return String(value)
+}
+
+function ChangesDetail({ changes }: { changes: Record<string, unknown> }) {
+  if (!changes || Object.keys(changes).length === 0) {
+    return <span className="text-xs text-gray-400">&mdash;</span>
+  }
+
+  const entries = Object.entries(changes).filter(
+    ([key]) => !['updated_at', 'created_at', 'id', 'uuid'].includes(key)
+  )
+
+  if (entries.length === 0) {
+    return <span className="text-xs text-gray-400">&mdash;</span>
+  }
+
+  return (
+    <div className="space-y-1">
+      {entries.map(([field, data]) => {
+        const displayName = field.replace(/_/g, ' ')
+
+        if (typeof data === 'object' && data !== null && 'old' in data && 'new' in data) {
+          const change = data as { old: unknown; new: unknown }
+          if (change.old === change.new) return null
+          return (
+            <div key={field} className="flex items-center gap-1.5 text-xs">
+              <span className="text-gray-500 capitalize min-w-[90px]">{displayName}</span>
+              <span className="text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded line-through truncate max-w-[120px]">
+                {formatValue(change.old)}
+              </span>
+              <ArrowRight className="w-3 h-3 text-gray-300 shrink-0" />
+              <span className="text-gray-700 bg-blue-50 px-1.5 py-0.5 rounded font-medium truncate max-w-[120px]">
+                {formatValue(change.new)}
+              </span>
+            </div>
+          )
+        }
+
+        return (
+          <div key={field} className="text-xs text-gray-500">
+            <span className="capitalize">{displayName}</span>: {formatValue(data)}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function AuditRow({ entry }: { entry: AuditLogEntry }) {
+  const [expanded, setExpanded] = useState(false)
+  const changes = entry.changes || {}
+  const changeKeys = Object.keys(changes).filter(
+    k => !['updated_at', 'created_at', 'id', 'uuid'].includes(k)
+  )
+  const hasChanges = changeKeys.length > 0
+  const isBulk = changeKeys.length > 3
+
+  return (
+    <>
+      <tr
+        className={cn(
+          'border-b border-gray-50 transition-colors',
+          hasChanges ? 'cursor-pointer hover:bg-gray-50/50' : ''
+        )}
+        onClick={() => hasChanges && setExpanded(!expanded)}
+      >
+        <td className="py-3 pl-3">
+          {hasChanges ? (
+            expanded
+              ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 inline" />
+              : <ChevronRight className="w-3.5 h-3.5 text-gray-400 inline" />
+          ) : <span className="w-3.5 inline-block" />}
+        </td>
+        <td className="py-3">
+          <span className="text-xs text-gray-600">{formatTimestamp(entry.timestamp)}</span>
+        </td>
+        <td className="py-3">
+          <span className="text-xs font-medium text-gray-900">{entry.user_name}</span>
+        </td>
+        <td className="py-3">
+          <span className={cn(
+            'px-2 py-0.5 text-[10px] font-medium rounded',
+            entry.action === 'CREATE' ? 'bg-green-100 text-green-700' :
+            entry.action === 'UPDATE' ? 'bg-blue-100 text-blue-700' :
+            'bg-red-100 text-red-700'
+          )}>
+            {AUDIT_ACTION_LABELS[entry.action]}
+          </span>
+        </td>
+        <td className="py-3">
+          <span className="text-xs text-gray-600">{TABLE_NAME_LABELS[entry.table_name] || entry.table_name}</span>
+        </td>
+        <td className="py-3">
+          {!hasChanges ? (
+            <span className="text-xs text-gray-400">&mdash;</span>
+          ) : isBulk ? (
+            <span className="text-xs text-gray-500">{changeKeys.length} fields changed</span>
+          ) : (
+            <span className="text-xs text-gray-500">{changeKeys.map(k => k.replace(/_/g, ' ')).join(', ')}</span>
+          )}
+        </td>
+      </tr>
+      {expanded && hasChanges && (
+        <tr className="bg-gray-50/70">
+          <td colSpan={6} className="px-10 py-3">
+            <ChangesDetail changes={changes} />
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
 
 export function AuditLogPage() {
   const [tableName, setTableName] = useState('')
@@ -25,19 +148,6 @@ export function AuditLogPage() {
       table_name: newTable || undefined,
       action: (newAction as AuditAction) || undefined,
     })
-  }
-
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp)
-    return date.toLocaleString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
-    })
-  }
-
-  const formatChanges = (changes: Record<string, unknown>) => {
-    if (!changes || Object.keys(changes).length === 0) return '\u2014'
-    const keys = Object.keys(changes)
-    return keys.length <= 2 ? keys.join(', ') : `${keys.slice(0, 2).join(', ')} +${keys.length - 2}`
   }
 
   return (
@@ -85,42 +195,20 @@ export function AuditLogPage() {
         ) : (
           <>
             <TableContainer isEmpty={!data?.items.length} emptyMessage="No audit logs">
-              <table className="w-full table-fixed">
+              <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100">
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Timestamp</th>
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">User</th>
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Table</th>
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Changes</th>
+                    <th className="w-8 pb-3" />
+                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">When</th>
+                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Who</th>
+                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Table</th>
+                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Changes</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data?.items.map(entry => (
-                    <tr key={entry.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="py-3">
-                        <span className="text-xs text-gray-600">{formatTimestamp(entry.timestamp)}</span>
-                      </td>
-                      <td className="py-3">
-                        <span className="text-xs font-medium text-gray-900">{entry.user_name}</span>
-                      </td>
-                      <td className="py-3">
-                        <span className={cn(
-                          'px-2 py-0.5 text-[10px] font-medium rounded',
-                          entry.action === 'CREATE' ? 'bg-green-100 text-green-700' :
-                          entry.action === 'UPDATE' ? 'bg-blue-100 text-blue-700' :
-                          'bg-red-100 text-red-700'
-                        )}>
-                          {AUDIT_ACTION_LABELS[entry.action]}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span className="text-xs text-gray-600">{TABLE_NAME_LABELS[entry.table_name] || entry.table_name}</span>
-                      </td>
-                      <td className="py-3">
-                        <span className="text-xs text-gray-500">{formatChanges(entry.changes)}</span>
-                      </td>
-                    </tr>
+                    <AuditRow key={entry.id} entry={entry} />
                   ))}
                 </tbody>
               </table>
