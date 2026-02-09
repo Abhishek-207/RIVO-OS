@@ -348,7 +348,9 @@ class LeadViewSet(viewsets.ModelViewSet):
 
         # Recent leads (last 24 hours with responses)
         since = timezone.now() - timedelta(hours=24)
-        recent_leads = Lead.objects.filter(
+        recent_leads = Lead.objects.select_related(
+            'source__channel'
+        ).filter(
             first_response_at__gte=since
         ).order_by('-first_response_at')[:10]
 

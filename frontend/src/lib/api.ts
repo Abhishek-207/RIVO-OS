@@ -81,6 +81,11 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     } catch {
       data = null
     }
+    // Auto-logout on 401 to prevent stale token loops
+    if (response.status === 401) {
+      localStorage.removeItem('rivo-auth')
+      window.location.href = '/login'
+    }
     throw new ApiError(response.status, response.statusText, data)
   }
 

@@ -8,7 +8,7 @@ status changes, co-applicant management, and case creation.
 import logging
 from datetime import timedelta
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -73,6 +73,7 @@ class ClientViewSet(viewsets.ModelViewSet):
         'converted_from_lead',
         'assigned_to',
         'co_applicant',  # OneToOne should use select_related
+        'extra_details',
     ).prefetch_related(
         'cases',  # Prefetch cases for SLA status check (self.cases.exists())
     ).order_by('-created_at')

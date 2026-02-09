@@ -14,14 +14,14 @@ export function ActivityTimelineGroup({ dateDisplay, entries }: ActivityTimeline
   return (
     <div>
       {/* Day Header */}
-      <div className="pb-3">
-        <span className="text-xs font-medium text-gray-400">
+      <div className="pb-2">
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
           {dateDisplay}
         </span>
       </div>
 
-      {/* Entries */}
-      <div className="space-y-1">
+      {/* Entries with left border connector */}
+      <div className="border-l-2 border-gray-100 ml-[18px] space-y-0.5">
         {entries.map((entry) => (
           <ActivityTimelineItem key={entry.id} entry={entry} />
         ))}

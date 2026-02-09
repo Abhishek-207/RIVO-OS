@@ -37,7 +37,7 @@ def get_client_messages(request, client_id):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    messages = WhatsAppMessage.objects.filter(client=client).order_by('created_at')
+    messages = list(WhatsAppMessage.objects.filter(client=client).order_by('created_at'))
 
     # Sync status from YCloud for outbound messages that aren't read/failed yet
     for msg in messages:
@@ -69,8 +69,6 @@ def get_client_messages(request, client_id):
             except YCloudError as e:
                 logger.warning(f'Failed to sync status for message {msg.id}: {e.message}')
 
-    # Refresh queryset after updates
-    messages = WhatsAppMessage.objects.filter(client=client).order_by('created_at')
     serializer = WhatsAppMessageSerializer(messages, many=True)
 
     return Response({
@@ -78,7 +76,7 @@ def get_client_messages(request, client_id):
         'client_name': client.name,
         'client_phone': client.phone,
         'messages': serializer.data,
-        'count': messages.count()
+        'count': len(messages)
     })
 
 
@@ -645,20 +643,14 @@ def normalize_phone_for_lookup(phone: str) -> str:
 def find_client_by_phone(normalized_phone: str):
     """
     Find a client by phone number.
-    Tries various formats to match.
+    Matches on last 10 digits (local number without country code).
     """
-    # Try exact match first
-    client = Client.objects.filter(phone__icontains=normalized_phone[-10:]).first()
+    last_10 = normalized_phone[-10:]
+
+    # Try icontains on last 10 digits (covers most formats)
+    client = Client.objects.filter(phone__icontains=last_10).first()
     if client:
         return client
-
-    # Try with country code variations
-    for client in Client.objects.all():
-        if client.phone:
-            client_normalized = ''.join(c for c in client.phone if c.isdigit())
-            # Match last 10 digits (local number without country code)
-            if client_normalized[-10:] == normalized_phone[-10:]:
-                return client
 
     return None
 

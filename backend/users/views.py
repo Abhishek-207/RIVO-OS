@@ -177,24 +177,15 @@ def login_view(request: Request) -> Response:
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def logout_view(request: Request) -> Response:
     """
     Log out the current user.
 
     POST /auth/logout
-    Invalidates the current session.
+    JWT is stateless so just return success. Client clears the token.
     """
-    try:
-        supabase = get_supabase_client()
-        supabase.auth.sign_out()
-        return Response({'message': 'Logged out successfully.'})
-    except Exception as e:
-        logger.error(f'Logout failed: {str(e)}')
-        return Response(
-            {'error': 'Logout failed.'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    return Response({'message': 'Logged out successfully.'})
 
 
 @api_view(['POST'])

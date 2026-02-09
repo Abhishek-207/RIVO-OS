@@ -156,15 +156,23 @@ VALUE_DISPLAY_NAMES = {
 # Fields that should be formatted as currency (AED)
 CURRENCY_FIELDS = {'monthly_salary', 'property_value', 'loan_amount', 'total_addbacks'}
 
-# Fields to SHOW in activity timeline (key milestones only)
-# Activity shows important events, not every field update
-# Full audit log has everything for compliance
+# Fields to SHOW in activity timeline
 ACTIVITY_VISIBLE_FIELDS = {
-    # Status & Workflow (key milestones)
-    'status',  # Lead: active → declined, Client: active → converted
-    'stage',   # Case progress: Processing → Bank Submission → etc.
-    # Assignment changes
+    # Status & Workflow
+    'status', 'stage',
+    # Assignment
     'assigned_to', 'assigned_to_id',
+    # Client / Lead fields
+    'name', 'phone', 'email',
+    'monthly_salary', 'residency', 'employment_type',
+    'application_type', 'intent',
+    'date_of_birth', 'nationality',
+    # Property & Loan
+    'property_value', 'loan_amount', 'bank', 'bank_id', 'rate',
+    'property_category', 'property_type', 'emirate',
+    'transaction_type', 'is_first_property',
+    'tenure_years', 'tenure_months',
+    'total_addbacks',
 }
 
 
@@ -227,14 +235,20 @@ def format_changes_for_display(changes):
     return result
 
 
+_user_name_cache = {}
+
 def get_user_name(user_id):
-    """Get user name from ID."""
+    """Get user name from ID (cached per request cycle)."""
     if not user_id:
         return 'System'
+    if user_id in _user_name_cache:
+        return _user_name_cache[user_id]
     try:
         user = User.objects.get(pk=user_id)
+        _user_name_cache[user_id] = user.name
         return user.name
     except User.DoesNotExist:
+        _user_name_cache[user_id] = 'Unknown'
         return 'Unknown'
 
 
@@ -271,7 +285,7 @@ def format_changed_fields_simple(changes):
         return f"{', '.join(fields[:-1])}, and {fields[-1]}"
 
 
-def format_action_summary(audit_entry):
+def format_action_summary(audit_entry, notes_map=None):
     """Convert audit log entry to human-readable action summary."""
     action = audit_entry.action
     table = audit_entry.table_name
@@ -301,13 +315,18 @@ def format_action_summary(audit_entry):
         if note_text:
             # Truncate to 50 chars
             note_preview = note_text[:50] + ('...' if len(note_text) > 50 else '')
-        # Check if there's a reminder associated with this note
-        try:
-            note = Note.objects.get(pk=audit_entry.record_id)
-            if hasattr(note, 'reminder') and note.reminder:
+        # Check if there's a reminder associated with this note (using pre-fetched map)
+        if notes_map is not None:
+            note = notes_map.get(audit_entry.record_id)
+            if note and hasattr(note, 'reminder') and note.reminder:
                 reminder_info = f' (reminder for {note.reminder.reminder_date.strftime("%b %d")})'
-        except Note.DoesNotExist:
-            pass
+        else:
+            try:
+                note = Note.objects.get(pk=audit_entry.record_id)
+                if hasattr(note, 'reminder') and note.reminder:
+                    reminder_info = f' (reminder for {note.reminder.reminder_date.strftime("%b %d")})'
+            except Note.DoesNotExist:
+                pass
 
     return template.format(
         user=user_name,
@@ -439,7 +458,16 @@ class ActivityTimelineView(APIView):
                 pass
 
         # Fetch and format entries
-        audit_entries = AuditLog.objects.filter(query).order_by('-timestamp')[:100]
+        audit_entries = list(AuditLog.objects.filter(query).order_by('-timestamp')[:100])
+
+        # Batch-fetch notes with reminders for note entries to avoid N+1
+        note_record_ids = [e.record_id for e in audit_entries if e.table_name == 'notes']
+        notes_map = {}
+        if note_record_ids:
+            notes_map = {
+                str(n.id): n
+                for n in Note.objects.select_related('reminder').filter(pk__in=note_record_ids)
+            }
 
         # Group entries by date
         grouped = defaultdict(list)
@@ -458,7 +486,7 @@ class ActivityTimelineView(APIView):
                 'id': entry.id,
                 'timestamp': entry.timestamp,
                 'user_name': get_user_name(entry.user_id),
-                'action_summary': format_action_summary(entry),
+                'action_summary': format_action_summary(entry, notes_map=notes_map),
                 'action_type': get_action_type(entry.table_name),
                 'entry_type': entry.action,
                 'record_type': entry.table_name,
