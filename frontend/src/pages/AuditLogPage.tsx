@@ -195,15 +195,15 @@ export function AuditLogPage() {
         ) : (
           <>
             <TableContainer isEmpty={!data?.items.length} emptyMessage="No audit logs">
-              <table className="w-full">
+              <table className="w-full table-fixed">
                 <thead>
                   <tr className="border-b border-gray-100">
                     <th className="w-8 pb-3" />
-                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">When</th>
-                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Who</th>
-                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
-                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Table</th>
-                    <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Changes</th>
+                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">When</th>
+                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Who</th>
+                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Table</th>
+                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Changes</th>
                   </tr>
                 </thead>
                 <tbody>
