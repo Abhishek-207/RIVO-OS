@@ -221,7 +221,7 @@ function AnalyticsDashboard() {
               label="Disbursed"
               value={formatCurrencyAED(o.total_disbursed)}
               sub={`${o.loans_count} loans`}
-              onClick={() => navigate('/cases?stage=disbursed')}
+              onClick={() => navigate(`/cases?stage=disbursed&start_date=${dateRange.start}&end_date=${dateRange.end}`)}
             />
             <KPICard label="Revenue" value={formatCurrencyAED(o.revenue)} />
             <KPICard
@@ -252,7 +252,7 @@ function AnalyticsDashboard() {
             {data.stage_funnel.map((s) => (
               <button
                 key={s.stage_key}
-                onClick={() => navigate(`/cases?stage=${s.stage_key}`)}
+                onClick={() => navigate(`/cases?stage=${s.stage_key}&start_date=${dateRange.start}&end_date=${dateRange.end}`)}
                 className={cn(
                   'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-80',
                   stageColors[s.stage_key as CaseStage] || 'bg-gray-100 text-gray-700'
@@ -271,8 +271,8 @@ function AnalyticsDashboard() {
         <TableCard>
           <TableContainer isEmpty={data.breakdown.length === 0} emptyMessage="No data for this period">
             {data.breakdown_type === 'source'
-              ? <SourceTable rows={data.breakdown} onRowClick={(row) => navigate(`/cases?source=${row.id}`)} />
-              : <ChannelTable rows={data.breakdown} onRowClick={(row) => navigate(`/cases?channel=${row.id}`)} />}
+              ? <SourceTable rows={data.breakdown} onRowClick={(row) => navigate(`/cases?source=${row.id}&start_date=${dateRange.start}&end_date=${dateRange.end}`)} />
+              : <ChannelTable rows={data.breakdown} onRowClick={(row) => navigate(`/cases?channel=${row.id}&start_date=${dateRange.start}&end_date=${dateRange.end}`)} />}
           </TableContainer>
         </TableCard>
       )}

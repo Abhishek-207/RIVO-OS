@@ -69,6 +69,8 @@ const DEFAULT_FILTERS = {
   channel: '',
   source: '',
   sla_status: '',
+  start_date: '',
+  end_date: '',
 }
 
 function BankFilterDropdown({ value, onChange, banks }: {
@@ -172,6 +174,8 @@ export function CasesPage() {
     channel: filters.channel || undefined,
     source: filters.source || undefined,
     sla_status: filters.sla_status || undefined,
+    start_date: filters.start_date || undefined,
+    end_date: filters.end_date || undefined,
   })
 
   const { data: banks } = useBanks()

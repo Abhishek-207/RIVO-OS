@@ -121,6 +121,8 @@ const CLIENT_DEFAULT_FILTERS = {
   page: '1',
   source: '',
   channel_id: '',
+  start_date: '',
+  end_date: '',
 }
 
 export function ClientsPage() {
@@ -157,6 +159,8 @@ export function ClientsPage() {
     status: statusFilter,
     source_id: sourceFilter || undefined,
     channel_id: filters.channel_id || undefined,
+    start_date: filters.start_date || undefined,
+    end_date: filters.end_date || undefined,
   })
 
   const clients = data?.items || []

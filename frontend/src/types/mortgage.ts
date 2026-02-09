@@ -693,6 +693,8 @@ export interface ClientsQueryParams {
   source_id?: string
   channel_id?: string
   sla_status?: string
+  start_date?: string
+  end_date?: string
 }
 
 export interface CasesQueryParams {
@@ -704,6 +706,8 @@ export interface CasesQueryParams {
   sla_status?: string
   channel?: string
   source?: string
+  start_date?: string
+  end_date?: string
 }
 
 // Stage Category Helpers

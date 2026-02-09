@@ -71,10 +71,10 @@ export function isTerminalStage(stage: CaseStage): boolean {
  * Hook for fetching paginated cases.
  */
 export function useCases(params: CasesQueryParams = {}) {
-  const { page = 1, page_size = 10, search = '', stage = 'all', bank, sla_status, channel, source } = params
+  const { page = 1, page_size = 10, search = '', stage = 'all', bank, sla_status, channel, source, start_date, end_date } = params
 
   return useQuery({
-    queryKey: ['cases', { page, page_size, search, stage, bank, sla_status, channel, source }],
+    queryKey: ['cases', { page, page_size, search, stage, bank, sla_status, channel, source, start_date, end_date }],
     queryFn: async (): Promise<PaginatedResponse<CaseListItem>> => {
       return await api.get<PaginatedResponse<CaseListItem>>('/cases/', {
         page,
@@ -85,6 +85,8 @@ export function useCases(params: CasesQueryParams = {}) {
         sla_status: sla_status || undefined,
         channel: channel || undefined,
         source: source || undefined,
+        start_date: start_date || undefined,
+        end_date: end_date || undefined,
       })
     },
   })

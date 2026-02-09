@@ -22,8 +22,8 @@ from acquisition_channels.models import Channel, Source
 from cases.models import Case, CaseStage, TERMINAL_STAGES
 from clients.models import Client
 from common.analytics import (
-    get_pipeline_counts, get_avg_response_minutes,
-    count_lead_breaches, count_case_breaches,
+    get_source_stats, aggregate_source_stats,
+    count_breaches_by_source,
 )
 from leads.models import Lead
 from users.models import UserRole
@@ -57,10 +57,26 @@ class DashboardAnalyticsView(APIView):
             Source.objects.filter(channel_id__in=channel_ids).values_list('id', flat=True)
         )
 
-        # Overall aggregates
-        overall = self._compute_overall(source_ids, start_dt, end_dt)
+        now = timezone.now()
 
-        # Breakdown rows
+        # Batch-fetch all data upfront (5 queries total regardless of channel/source count)
+        stats_by_source = get_source_stats(source_ids, start_dt, end_dt)
+        breaches_by_source = count_breaches_by_source(source_ids, start_dt, end_dt, now)
+
+        # Overall aggregates
+        overall_counts = aggregate_source_stats(stats_by_source, source_ids)
+        overall_breaches = sum(breaches_by_source.get(s, 0) for s in source_ids)
+        overall = {
+            'total_disbursed': str(overall_counts['total_disbursed']),
+            'revenue': str((overall_counts['total_disbursed'] * REVENUE_RATE).quantize(Decimal('0.01'))),
+            'total_leads': overall_counts['leads_count'],
+            'total_clients': overall_counts['clients_count'],
+            'total_cases': overall_counts['cases_count'],
+            'loans_count': overall_counts['loans_count'],
+            'sla_breaches': overall_breaches,
+        }
+
+        # Breakdown rows (built from pre-fetched data, no extra queries)
         channel_rows = []
         source_rows = []
 
@@ -69,14 +85,36 @@ class DashboardAnalyticsView(APIView):
             ch_source_ids = [s.id for s in ch_sources]
 
             if user.role == UserRole.ADMIN:
-                row = self._compute_row(ch.name, ch_source_ids, start_dt, end_dt,
-                                        monthly_spend=ch.monthly_spend, row_id=str(ch.id))
-                channel_rows.append(row)
+                rc = aggregate_source_stats(stats_by_source, ch_source_ids)
+                rb = sum(breaches_by_source.get(s, 0) for s in ch_source_ids)
+                channel_rows.append({
+                    'id': str(ch.id),
+                    'name': ch.name,
+                    'monthly_spend': str(ch.monthly_spend) if ch.monthly_spend else None,
+                    'leads_count': rc['leads_count'],
+                    'clients_count': rc['clients_count'],
+                    'cases_count': rc['cases_count'],
+                    'loans_count': rc['loans_count'],
+                    'total_disbursed': str(rc['total_disbursed']),
+                    'sla_breaches': rb,
+                })
 
             if user.role == UserRole.CHANNEL_OWNER:
                 for src in ch_sources:
-                    row = self._compute_source_row(src, start_dt, end_dt)
-                    source_rows.append(row)
+                    ss = stats_by_source.get(src.id, {})
+                    lc = ss.get('leads_count', 0)
+                    source_rows.append({
+                        'id': str(src.id),
+                        'name': src.name,
+                        'leads_count': lc,
+                        'clients_count': ss.get('clients_count', 0),
+                        'cases_count': ss.get('cases_count', 0),
+                        'total_disbursed': str(ss.get('total_disbursed', Decimal('0'))),
+                        'sla_breaches': breaches_by_source.get(src.id, 0),
+                        'converted_pct': round(ss.get('converted', 0) / lc * 100, 1) if lc > 0 else 0,
+                        'declined_pct': round(ss.get('declined', 0) / lc * 100, 1) if lc > 0 else 0,
+                        'avg_response_minutes': ss.get('avg_response_minutes'),
+                    })
 
         response = {
             'overall': overall,
@@ -118,65 +156,6 @@ class DashboardAnalyticsView(APIView):
             end = today.replace(month=today.month + 1, day=1) - timedelta(days=1)
         return start, end
 
-    def _compute_overall(self, source_ids, start_dt, end_dt):
-        counts = get_pipeline_counts(source_ids, start_dt, end_dt)
-        breaches = self._count_breaches(source_ids, start_dt, end_dt)
-
-        return {
-            'total_disbursed': str(counts['total_disbursed']),
-            'revenue': str((counts['total_disbursed'] * REVENUE_RATE).quantize(Decimal('0.01'))),
-            'total_leads': counts['leads_count'],
-            'total_clients': counts['clients_count'],
-            'total_cases': counts['cases_count'],
-            'loans_count': counts['loans_count'],
-            'sla_breaches': breaches,
-        }
-
-    def _compute_row(self, name, source_ids, start_dt, end_dt, monthly_spend=None, row_id=''):
-        counts = get_pipeline_counts(source_ids, start_dt, end_dt)
-        breaches = self._count_breaches(source_ids, start_dt, end_dt)
-
-        return {
-            'id': row_id,
-            'name': name,
-            'monthly_spend': str(monthly_spend) if monthly_spend else None,
-            'leads_count': counts['leads_count'],
-            'clients_count': counts['clients_count'],
-            'cases_count': counts['cases_count'],
-            'loans_count': counts['loans_count'],
-            'total_disbursed': str(counts['total_disbursed']),
-            'sla_breaches': breaches,
-        }
-
-    def _compute_source_row(self, source, start_dt, end_dt):
-        """Source-level row for channel owners with lead quality + avg response time."""
-        sid = [source.id]
-        leads_qs = Lead.objects.filter(source_id__in=sid, created_at__range=(start_dt, end_dt))
-        converted = leads_qs.filter(converted_client_id__isnull=False).count()
-        declined = leads_qs.filter(status='declined').count()
-
-        counts = get_pipeline_counts(sid, start_dt, end_dt)
-        leads_count = counts['leads_count']
-        avg_response_minutes = get_avg_response_minutes(leads_qs)
-        breaches = self._count_breaches(sid, start_dt, end_dt)
-
-        return {
-            'id': str(source.id),
-            'name': source.name,
-            'leads_count': leads_count,
-            'clients_count': counts['clients_count'],
-            'cases_count': counts['cases_count'],
-            'total_disbursed': str(counts['total_disbursed']),
-            'sla_breaches': breaches,
-            'converted_pct': round(converted / leads_count * 100, 1) if leads_count > 0 else 0,
-            'declined_pct': round(declined / leads_count * 100, 1) if leads_count > 0 else 0,
-            'avg_response_minutes': avg_response_minutes,
-        }
-
-    # ------------------------------------------------------------------
-    # Admin-only sections
-    # ------------------------------------------------------------------
-
     def _stage_funnel(self, source_ids):
         """Current cases by stage (live snapshot, not date-filtered)."""
         excluded = TERMINAL_STAGES | {CaseStage.ON_HOLD}
@@ -187,17 +166,12 @@ class DashboardAnalyticsView(APIView):
         ).values('stage').annotate(count=Count('id')).order_by()
 
         stage_map = dict(CaseStage.choices)
-        # Order stages by the natural workflow progression
         stage_order = [s.value for s in CaseStage if s not in excluded]
         rows = {row['stage']: row['count'] for row in cases}
         return [
             {'stage': stage_map.get(key, key), 'stage_key': key, 'count': rows[key]}
             for key in stage_order if key in rows
         ]
-
-    # ------------------------------------------------------------------
-    # Channel Owner sections
-    # ------------------------------------------------------------------
 
     def _pipeline_snapshot(self, source_ids):
         """Current pipeline: active leads, clients, cases (live snapshot)."""
@@ -216,16 +190,3 @@ class DashboardAnalyticsView(APIView):
             'active_clients': active_clients,
             'active_cases': active_cases,
         }
-
-    # ------------------------------------------------------------------
-    # Shared
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _count_breaches(source_ids, start_dt, end_dt):
-        """Count SLA breaches for leads and active cases (DB-level)."""
-        now = timezone.now()
-        return (
-            count_lead_breaches(source_ids, start_dt, end_dt, now)
-            + count_case_breaches(source_ids, start_dt, end_dt, now)
-        )

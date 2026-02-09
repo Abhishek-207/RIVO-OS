@@ -1,14 +1,14 @@
 """
 Shared analytics query helpers.
 
-Consolidates the repeated leads/clients/cases count + disbursed queries
-used by the dashboard analytics view so they are defined once.
+All functions use GROUP BY source_id so the dashboard can batch-fetch
+data for every channel/source in a constant number of queries.
 """
 
 from decimal import Decimal
 
 from django.db.models import (
-    Avg, Case as DBCase, DateTimeField, DurationField,
+    Avg, Case as DBCase, Count, DateTimeField, DurationField,
     ExpressionWrapper, F, Func, IntegerField, Q, Sum, Value, When,
 )
 from django.db.models.functions import Coalesce
@@ -32,78 +32,112 @@ class HoursToInterval(Func):
     output_field = DurationField()
 
 
-def get_pipeline_counts(source_ids, start_dt, end_dt):
+_ZERO_STATS = {
+    'leads_count': 0,
+    'clients_count': 0,
+    'cases_count': 0,
+    'loans_count': 0,
+    'total_disbursed': Decimal('0'),
+    'converted': 0,
+    'declined': 0,
+    'avg_response_minutes': None,
+}
+
+
+def get_source_stats(source_ids, start_dt, end_dt):
     """
-    Get lead/client/case counts and disbursed totals for a set of sources.
+    Batch-fetch pipeline counts + lead quality grouped by source_id.
 
-    Returns dict with: leads_count, clients_count, cases_count,
-    loans_count, total_disbursed.
+    3 queries total: leads, clients, cases.
+    Returns {source_id: {leads_count, clients_count, cases_count,
+             loans_count, total_disbursed, converted, declined, avg_response_minutes}}
     """
-    leads = Lead.objects.filter(
-        source_id__in=source_ids, created_at__range=(start_dt, end_dt)
-    ).count()
+    result = {sid: {**_ZERO_STATS} for sid in source_ids}
 
-    clients = Client.objects.filter(
-        source_id__in=source_ids, created_at__range=(start_dt, end_dt)
-    ).count()
-
-    cases_count = Case.objects.filter(
-        client__source_id__in=source_ids, created_at__range=(start_dt, end_dt)
-    ).count()
-
-    disbursed_qs = Case.objects.filter(
-        client__source_id__in=source_ids,
-        stage=CaseStage.DISBURSED,
-        stage_changed_at__range=(start_dt, end_dt),
-    )
-    agg = disbursed_qs.aggregate(
-        total=Coalesce(Sum('loan_amount'), Value(Decimal('0')))
-    )
-    total_disbursed = agg['total']
-    loans_count = disbursed_qs.count()
-
-    return {
-        'leads_count': leads,
-        'clients_count': clients,
-        'cases_count': cases_count,
-        'loans_count': loans_count,
-        'total_disbursed': total_disbursed,
-    }
-
-
-def get_avg_response_minutes(leads_qs):
-    """
-    Calculate average first-response time in minutes using DB aggregation.
-
-    Args:
-        leads_qs: a Lead queryset (already filtered by source/date)
-
-    Returns:
-        int or None
-    """
-    result = leads_qs.filter(
-        first_response_at__isnull=False
+    # Query 1: Leads — count + quality + avg response in one shot
+    for row in Lead.objects.filter(
+        source_id__in=source_ids, created_at__range=(start_dt, end_dt),
     ).annotate(
         response_time=ExpressionWrapper(
             F('first_response_at') - F('created_at'),
-            output_field=DurationField()
-        )
-    ).aggregate(avg_time=Avg('response_time'))
+            output_field=DurationField(),
+        ),
+    ).values('source_id').annotate(
+        count=Count('id'),
+        converted=Count('id', filter=Q(converted_client_id__isnull=False)),
+        declined=Count('id', filter=Q(status=LeadStatus.DECLINED)),
+        avg_response=Avg('response_time'),
+    ):
+        sid = row['source_id']
+        result[sid]['leads_count'] = row['count']
+        result[sid]['converted'] = row['converted']
+        result[sid]['declined'] = row['declined']
+        avg = row['avg_response']
+        result[sid]['avg_response_minutes'] = round(avg.total_seconds() / 60) if avg else None
 
-    avg_time = result['avg_time']
-    if avg_time is None:
-        return None
-    return round(avg_time.total_seconds() / 60)
+    # Query 2: Clients
+    for row in Client.objects.filter(
+        source_id__in=source_ids, created_at__range=(start_dt, end_dt),
+    ).values('source_id').annotate(count=Count('id')):
+        result[row['source_id']]['clients_count'] = row['count']
+
+    # Query 3: Cases + disbursed (merged via conditional aggregation)
+    for row in Case.objects.filter(
+        client__source_id__in=source_ids,
+    ).filter(
+        Q(created_at__range=(start_dt, end_dt))
+        | Q(stage=CaseStage.DISBURSED, stage_changed_at__range=(start_dt, end_dt))
+    ).values('client__source_id').annotate(
+        cases_count=Count('id', filter=Q(created_at__range=(start_dt, end_dt))),
+        loans_count=Count('id', filter=Q(
+            stage=CaseStage.DISBURSED, stage_changed_at__range=(start_dt, end_dt),
+        )),
+        total_disbursed=Coalesce(
+            Sum('loan_amount', filter=Q(
+                stage=CaseStage.DISBURSED, stage_changed_at__range=(start_dt, end_dt),
+            )),
+            Value(Decimal('0')),
+        ),
+    ):
+        sid = row['client__source_id']
+        result[sid]['cases_count'] = row['cases_count']
+        result[sid]['loans_count'] = row['loans_count']
+        result[sid]['total_disbursed'] = row['total_disbursed']
+
+    return result
 
 
-def count_lead_breaches(source_ids, start_dt, end_dt, now):
+def aggregate_source_stats(stats_by_source, source_ids):
+    """Sum pipeline counts across a set of source_ids (pure Python, no DB)."""
+    totals = {
+        'leads_count': 0,
+        'clients_count': 0,
+        'cases_count': 0,
+        'loans_count': 0,
+        'total_disbursed': Decimal('0'),
+    }
+    for sid in source_ids:
+        c = stats_by_source.get(sid)
+        if not c:
+            continue
+        totals['leads_count'] += c['leads_count']
+        totals['clients_count'] += c['clients_count']
+        totals['cases_count'] += c['cases_count']
+        totals['loans_count'] += c['loans_count']
+        totals['total_disbursed'] += c['total_disbursed']
+    return totals
+
+
+def count_breaches_by_source(source_ids, start_dt, end_dt, now):
     """
-    Count lead SLA breaches using DB-level queries.
+    Count SLA breaches (leads + cases) grouped by source_id.
 
-    A lead is breached if:
-    - It responded AFTER the SLA deadline, OR
-    - It has NOT responded AND the deadline has passed AND it's not terminal
+    2 queries total: one for leads, one for cases.
+    Returns {source_id: int}
     """
+    result = {sid: 0 for sid in source_ids}
+
+    # -- Query 1: Lead breaches (responded + no-response in one query) --
     effective_sla = Coalesce(
         F('source__sla_minutes'),
         F('source__channel__default_sla_minutes'),
@@ -112,40 +146,30 @@ def count_lead_breaches(source_ids, start_dt, end_dt, now):
         F('created_at') + MinutesToInterval(F('_sla')),
         output_field=DateTimeField(),
     )
-
-    base = Lead.objects.filter(
+    for row in Lead.objects.filter(
         source_id__in=source_ids,
         created_at__range=(start_dt, end_dt),
     ).annotate(
         _sla=effective_sla,
         _deadline=deadline_expr,
-    ).filter(_sla__isnull=False)
+    ).filter(
+        _sla__isnull=False,
+    ).values('source_id').annotate(
+        breached_responded=Count('id', filter=Q(
+            first_response_at__isnull=False,
+            first_response_at__gt=F('_deadline'),
+        )),
+        breached_no_response=Count('id', filter=(
+            Q(first_response_at__isnull=True, _deadline__lt=now)
+            & ~Q(status=LeadStatus.DECLINED)
+            & Q(converted_client_id__isnull=True)
+        )),
+    ):
+        result[row['source_id']] += row['breached_responded'] + row['breached_no_response']
 
-    # Responded after deadline
-    breached_responded = base.filter(
-        first_response_at__isnull=False,
-        first_response_at__gt=F('_deadline'),
-    ).count()
-
-    # No response, deadline passed, not terminal
-    breached_no_response = base.filter(
-        first_response_at__isnull=True,
-        _deadline__lt=now,
-    ).exclude(
-        Q(status=LeadStatus.DECLINED) | Q(converted_client_id__isnull=False)
-    ).count()
-
-    return breached_responded + breached_no_response
-
-
-def count_case_breaches(source_ids, start_dt, end_dt, now):
-    """
-    Count case SLA breaches using DB-level queries.
-
-    A case is breached if it has been in its current stage longer than
-    the configured SLA hours for that stage.
-    """
-    sla_configs = StageSLAConfig.get_sla_for_stage  # triggers cache load
+    # -- Query 2: Case breaches --
+    if StageSLAConfig._sla_cache is None:
+        StageSLAConfig.get_sla_for_stage('')
     if StageSLAConfig._sla_cache is None:
         StageSLAConfig._sla_cache = {
             c.from_stage: c.sla_hours
@@ -156,23 +180,23 @@ def count_case_breaches(source_ids, start_dt, end_dt, now):
         When(stage=stage, then=Value(hours))
         for stage, hours in StageSLAConfig._sla_cache.items()
     ]
-    if not sla_whens:
-        return 0
+    if sla_whens:
+        case_deadline = ExpressionWrapper(
+            F('stage_changed_at') + HoursToInterval(F('_sla_hours')),
+            output_field=DateTimeField(),
+        )
+        for row in Case.objects.filter(
+            client__source_id__in=source_ids,
+            created_at__range=(start_dt, end_dt),
+        ).exclude(
+            stage__in=TERMINAL_STAGES,
+        ).annotate(
+            _sla_hours=DBCase(*sla_whens, output_field=IntegerField()),
+            _deadline=case_deadline,
+        ).filter(
+            _sla_hours__isnull=False,
+            _deadline__lt=now,
+        ).values('client__source_id').annotate(count=Count('id')):
+            result[row['client__source_id']] += row['count']
 
-    deadline_expr = ExpressionWrapper(
-        F('stage_changed_at') + HoursToInterval(F('_sla_hours')),
-        output_field=DateTimeField(),
-    )
-
-    return Case.objects.filter(
-        client__source_id__in=source_ids,
-        created_at__range=(start_dt, end_dt),
-    ).exclude(
-        stage__in=TERMINAL_STAGES,
-    ).annotate(
-        _sla_hours=DBCase(*sla_whens, output_field=IntegerField()),
-        _deadline=deadline_expr,
-    ).filter(
-        _sla_hours__isnull=False,
-        _deadline__lt=now,
-    ).count()
+    return result

@@ -123,6 +123,12 @@ class ClientViewSet(viewsets.ModelViewSet):
         if channel_id:
             queryset = queryset.filter(source__channel_id=channel_id)
 
+        # Date range filter (created_at)
+        start_date = self.request.query_params.get('start_date', '').strip()
+        end_date = self.request.query_params.get('end_date', '').strip()
+        if start_date and end_date:
+            queryset = queryset.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
+
         # SLA status filter - uses DB-level filtering where possible
         sla_status_filter = self.request.query_params.get('sla_status', '').strip()
         if sla_status_filter:

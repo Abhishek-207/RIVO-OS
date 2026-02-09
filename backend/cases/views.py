@@ -114,6 +114,17 @@ class CaseViewSet(viewsets.ModelViewSet):
         if source:
             queryset = queryset.filter(client__source_id=source)
 
+        # Date range filter
+        # When a specific stage is set, filter by stage_changed_at (matches dashboard counts)
+        # Otherwise filter by created_at
+        start_date = self.request.query_params.get('start_date', '').strip()
+        end_date = self.request.query_params.get('end_date', '').strip()
+        if start_date and end_date:
+            if stage and stage not in ('active', 'terminal') and stage in CaseStage.values:
+                queryset = queryset.filter(stage_changed_at__date__gte=start_date, stage_changed_at__date__lte=end_date)
+            else:
+                queryset = queryset.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
+
         # SLA status filter - uses DB-level filtering where possible
         sla_status_filter = self.request.query_params.get('sla_status', '').strip()
         if sla_status_filter:
