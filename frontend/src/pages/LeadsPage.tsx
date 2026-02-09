@@ -37,6 +37,7 @@ const DEFAULT_FILTERS = {
   search: '',
   page: '1',
   source: '',
+  channel_id: '',
 }
 
 export function LeadsPage() {
@@ -64,6 +65,7 @@ export function LeadsPage() {
     search: filters.search,
     status: statusFilter,
     source_id: sourceFilter || undefined,
+    channel_id: filters.channel_id || undefined,
   })
 
   const leads = data?.items || []

@@ -7,6 +7,7 @@ import { Trash2, Briefcase } from 'lucide-react'
 import { useClients, useDeleteClient } from '@/hooks/useClients'
 import { useBanks } from '@/hooks/useCases'
 import { useSourcesForFilter } from '@/hooks/useChannels'
+import { useUrlFilters } from '@/hooks/useUrlState'
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch'
 import { useAuth } from '@/contexts/AuthContext'
 import type { ClientListItem, ClientStatus, ClientCaseSummary } from '@/types/mortgage'
@@ -114,26 +115,36 @@ function CaseDropdown({ cases, onSelect, banks }: {
   )
 }
 
+const CLIENT_DEFAULT_FILTERS = {
+  status: 'all',
+  search: '',
+  page: '1',
+  source: '',
+  channel_id: '',
+}
+
 export function ClientsPage() {
   const { can } = useAuth()
   const canCreate = can('create', 'clients')
   const canDelete = can('delete', 'clients')
   const [statusError, setStatusError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all')
-  const [sourceFilter, setSourceFilter] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
 
+  const [filters, setFilters] = useUrlFilters(CLIENT_DEFAULT_FILTERS)
+
   const handleSearchChange = useCallback((value: string) => {
-    setSearchQuery(value)
-    setCurrentPage(1)
-  }, [])
+    setFilters({ search: value, page: '1' })
+  }, [setFilters])
 
   const { inputValue, setInputValue } = useDebouncedSearch({
+    initialValue: filters.search,
     onSearch: handleSearchChange,
   })
+
+  const currentPage = parseInt(filters.page, 10) || 1
+  const statusFilter = filters.status as ClientStatus | 'all'
+  const sourceFilter = filters.source || ''
 
   const { data: banks } = useBanks()
   const { data: sources } = useSourcesForFilter('all')
@@ -142,9 +153,10 @@ export function ClientsPage() {
   const { data, isLoading, error } = useClients({
     page: currentPage,
     page_size: PAGE_SIZE,
-    search: searchQuery,
+    search: filters.search,
     status: statusFilter,
     source_id: sourceFilter || undefined,
+    channel_id: filters.channel_id || undefined,
   })
 
   const clients = data?.items || []
@@ -180,11 +192,11 @@ export function ClientsPage() {
           <StatusTabs
             tabs={STATUS_TABS}
             value={statusFilter}
-            onChange={(value) => { setStatusFilter(value); setCurrentPage(1) }}
+            onChange={(value) => setFilters({ status: value, page: '1' })}
           />
           <select
             value={sourceFilter}
-            onChange={(e) => { setSourceFilter(e.target.value); setCurrentPage(1) }}
+            onChange={(e) => setFilters({ source: e.target.value, page: '1' })}
             className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white min-w-[140px]"
           >
             <option value="">All Sources</option>
@@ -274,7 +286,7 @@ export function ClientsPage() {
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
-          onPageChange={setCurrentPage}
+          onPageChange={(page) => setFilters({ page: String(page) })}
           itemLabel="clients"
         />
       </TableCard>

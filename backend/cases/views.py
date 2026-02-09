@@ -120,6 +120,16 @@ class CaseViewSet(viewsets.ModelViewSet):
         if client_id:
             queryset = queryset.filter(client_id=client_id)
 
+        # Channel filter (for dashboard drill-down)
+        channel = self.request.query_params.get('channel', '').strip()
+        if channel:
+            queryset = queryset.filter(client__source__channel_id=channel)
+
+        # Source filter (for dashboard drill-down)
+        source = self.request.query_params.get('source', '').strip()
+        if source:
+            queryset = queryset.filter(client__source_id=source)
+
         # SLA status filter - uses DB-level filtering where possible
         sla_status_filter = self.request.query_params.get('sla_status', '').strip()
         if sla_status_filter:

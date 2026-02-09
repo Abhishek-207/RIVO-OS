@@ -680,6 +680,7 @@ export interface LeadsQueryParams {
   search?: string
   status?: LeadStatus | 'all'
   source_id?: string
+  channel_id?: string
   campaign_status?: CampaignStatus | 'all'
 }
 
@@ -690,6 +691,7 @@ export interface ClientsQueryParams {
   status?: ClientStatus | 'all'
   application_type?: ApplicationType | 'all'
   source_id?: string
+  channel_id?: string
   sla_status?: string
 }
 
@@ -700,6 +702,8 @@ export interface CasesQueryParams {
   stage?: CaseStage | 'all'
   bank?: string
   sla_status?: string
+  channel?: string
+  source?: string
 }
 
 // Stage Category Helpers

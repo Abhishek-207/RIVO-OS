@@ -66,6 +66,9 @@ const DEFAULT_FILTERS = {
   bank: '',
   search: '',
   page: '1',
+  channel: '',
+  source: '',
+  sla_status: '',
 }
 
 function BankFilterDropdown({ value, onChange, banks }: {
@@ -166,6 +169,9 @@ export function CasesPage() {
     search: filters.search,
     stage: stageFilter,
     bank: bankFilter || undefined,
+    channel: filters.channel || undefined,
+    source: filters.source || undefined,
+    sla_status: filters.sla_status || undefined,
   })
 
   const { data: banks } = useBanks()

@@ -44,7 +44,7 @@ export interface AnalyticsDashboardData {
     start_date: string
     end_date: string
   }
-  // Admin only
+  // Admin and Channel Owner
   stage_funnel?: StageFunnelItem[]
   // Channel Owner only
   pipeline?: PipelineSnapshot

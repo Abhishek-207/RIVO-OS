@@ -91,6 +91,7 @@ class DashboardAnalyticsView(APIView):
             response['breakdown'] = source_rows
             response['breakdown_type'] = 'source'
             response['pipeline'] = self._pipeline_snapshot(source_ids)
+            response['stage_funnel'] = self._stage_funnel(source_ids)
 
         return Response(response)
 
@@ -225,7 +226,9 @@ class DashboardAnalyticsView(APIView):
     def _stage_funnel(self, source_ids):
         """Current cases by stage (live snapshot, not date-filtered)."""
         excluded = TERMINAL_STAGES | {CaseStage.ON_HOLD}
-        cases = Case.objects.exclude(
+        cases = Case.objects.filter(
+            client__source_id__in=source_ids,
+        ).exclude(
             stage__in=excluded,
         ).values('stage').annotate(count=Count('id')).order_by()
 
