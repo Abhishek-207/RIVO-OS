@@ -12,7 +12,6 @@ from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 from clients.models import Client, ClientStatus, CoApplicant, ClientExtraDetails, ApplicationType
@@ -27,25 +26,10 @@ from clients.serializers import (
     ClientExtraDetailsSerializer,
     ClientExtraDetailsCreateUpdateSerializer,
 )
+from common.pagination import StandardPagination
 from users.permissions import IsAuthenticated, CanAccessClients
 
 logger = logging.getLogger(__name__)
-
-
-class ClientPagination(PageNumberPagination):
-    """Custom pagination for clients with configurable page size."""
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-    def get_paginated_response(self, data):
-        return Response({
-            'items': data,
-            'total': self.page.paginator.count,
-            'page': self.page.number,
-            'page_size': self.get_page_size(self.request),
-            'total_pages': self.page.paginator.num_pages,
-        })
 
 
 class ClientViewSet(viewsets.ModelViewSet):
@@ -78,7 +62,7 @@ class ClientViewSet(viewsets.ModelViewSet):
         'cases',  # Prefetch cases for SLA status check (self.cases.exists())
     ).order_by('-created_at')
     permission_classes = [IsAuthenticated, CanAccessClients]
-    pagination_class = ClientPagination
+    pagination_class = StandardPagination
 
     # Disable destroy action - no delete per spec
     http_method_names = ['get', 'post', 'patch', 'head', 'options']
@@ -100,6 +84,15 @@ class ClientViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter queryset based on search and status query params."""
         queryset = super().get_queryset()
+
+        # Annotate _has_whatsapp for detail view to avoid N+1 in serializer
+        if self.action in ('retrieve', 'partial_update'):
+            from whatsapp.models import WhatsAppMessage
+            queryset = queryset.annotate(
+                _has_whatsapp=Exists(
+                    WhatsAppMessage.objects.filter(client_id=OuterRef('pk'))
+                )
+            )
 
         # Search filter (name, phone, email)
         search = self.request.query_params.get('search', '').strip()

@@ -14,7 +14,6 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, action, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -36,26 +35,12 @@ from leads.serializers import (
     LeadInteractionSerializer,
     LeadMessageSerializer,
 )
+from common.pagination import StandardPagination
+from common.ycloud_sync import sync_message_statuses
 from users.permissions import IsAuthenticated, CanAccessLeads
 from whatsapp.services import ycloud_service, YCloudError
 
 logger = logging.getLogger(__name__)
-
-
-class LeadPagination(PageNumberPagination):
-    """Custom pagination for leads with configurable page size."""
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-    def get_paginated_response(self, data):
-        return Response({
-            'items': data,
-            'total': self.page.paginator.count,
-            'page': self.page.number,
-            'page_size': self.get_page_size(self.request),
-            'total_pages': self.page.paginator.num_pages,
-        })
 
 
 class LeadViewSet(viewsets.ModelViewSet):
@@ -77,7 +62,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         'source__channel'
     ).filter(converted_client_id__isnull=True).order_by('-created_at')
     permission_classes = [IsAuthenticated, CanAccessLeads]
-    pagination_class = LeadPagination
+    pagination_class = StandardPagination
     http_method_names = ['get', 'post', 'patch', 'head', 'options']
 
     def get_serializer_class(self):
@@ -379,9 +364,9 @@ class LeadViewSet(viewsets.ModelViewSet):
         """
         lead = self.get_object()
 
-        # Get interactions and messages
-        interactions = lead.interactions.order_by('created_at')
-        messages = lead.messages.order_by('created_at')
+        # Get interactions and messages (last 200 each)
+        interactions = lead.interactions.order_by('-created_at')[:200]
+        messages = lead.messages.order_by('-created_at')[:200]
 
         # Merge and sort by timestamp
         journey_items = []
@@ -478,49 +463,28 @@ class LeadViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'])
     def messages(self, request: Request, pk=None) -> Response:
         """
-        Get all WhatsApp messages for a specific lead.
+        Get WhatsApp messages for a specific lead (last 200).
 
         GET /api/leads/{lead_id}/messages/
-
-        Returns all messages with the lead, sorted by created_at.
         """
         lead = self.get_object()
 
-        messages = list(LeadMessage.objects.filter(lead=lead).order_by('created_at'))
+        messages = list(
+            LeadMessage.objects.filter(lead=lead)
+            .order_by('-created_at')[:200]
+        )
+        messages.reverse()  # chronological order for display
 
-        # Sync status from YCloud for outbound messages that aren't read/failed yet
-        updated_msgs = []
-        for msg in messages:
-            if (msg.direction == MessageDirection.OUTBOUND and
-                msg.ycloud_message_id and
-                msg.status not in [LeadMessageStatus.READ, LeadMessageStatus.FAILED]):
-                try:
-                    ycloud_data = ycloud_service.get_message_status(msg.ycloud_message_id)
-                    ycloud_status = ycloud_data.get('status', '').lower()
-
-                    status_map = {
-                        'sent': LeadMessageStatus.SENT,
-                        'delivered': LeadMessageStatus.DELIVERED,
-                        'read': LeadMessageStatus.READ,
-                        'failed': LeadMessageStatus.FAILED,
-                    }
-
-                    if ycloud_status in status_map:
-                        new_status = status_map[ycloud_status]
-                        if msg.status != new_status:
-                            msg.status = new_status
-                            if ycloud_data.get('deliverTime'):
-                                from django.utils.dateparse import parse_datetime
-                                msg.delivered_at = parse_datetime(ycloud_data['deliverTime'])
-                            updated_msgs.append(msg)
-                            pass
-
-                except YCloudError as e:
-                    logger.warning(f'Failed to sync status for lead message {msg.id}: {e.message}')
-
-        # Bulk update all changed messages in one query
-        if updated_msgs:
-            LeadMessage.objects.bulk_update(updated_msgs, ['status', 'delivered_at'])
+        # Sync outbound statuses from YCloud
+        updated = sync_message_statuses(
+            messages,
+            status_enum=LeadMessageStatus,
+            ycloud_service=ycloud_service,
+            direction_outbound=MessageDirection.OUTBOUND,
+            terminal_statuses={LeadMessageStatus.READ, LeadMessageStatus.FAILED},
+        )
+        if updated:
+            LeadMessage.objects.bulk_update(updated, ['status', 'delivered_at'])
 
         serializer = LeadMessageSerializer(messages, many=True)
 

@@ -169,6 +169,7 @@ class Lead(AuditableModel):
             models.Index(fields=['created_at'], name='leads_created_at_idx'),
             models.Index(fields=['campaign_status'], name='leads_campaign_status_idx'),
             models.Index(fields=['ycloud_contact_id'], name='leads_ycloud_contact_idx'),
+            models.Index(fields=['phone'], name='leads_phone_idx'),
         ]
 
     def __str__(self) -> str:

@@ -10,6 +10,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from common.ycloud_sync import sync_message_statuses
 from users.permissions import IsAuthenticated
 
 from clients.models import Client
@@ -37,36 +38,22 @@ def get_client_messages(request, client_id):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    messages = list(WhatsAppMessage.objects.filter(client=client).order_by('created_at'))
+    messages = list(
+        WhatsAppMessage.objects.filter(client=client)
+        .order_by('-created_at')[:200]
+    )
+    messages.reverse()  # chronological order for display
 
-    # Sync status from YCloud for outbound messages that aren't read/failed yet
-    for msg in messages:
-        if (msg.direction == MessageDirection.OUTBOUND and
-            msg.ycloud_message_id and
-            msg.status not in [MessageStatus.READ, MessageStatus.FAILED]):
-            try:
-                ycloud_data = ycloud_service.get_message_status(msg.ycloud_message_id)
-                ycloud_status = ycloud_data.get('status', '').lower()
-
-                # Map YCloud status to our status
-                status_map = {
-                    'sent': MessageStatus.SENT,
-                    'delivered': MessageStatus.DELIVERED,
-                    'read': MessageStatus.READ,
-                    'failed': MessageStatus.FAILED,
-                }
-
-                if ycloud_status in status_map:
-                    new_status = status_map[ycloud_status]
-                    if msg.status != new_status:
-                        msg.status = new_status
-                        # Update delivered_at timestamp if available
-                        if ycloud_data.get('deliverTime'):
-                            msg.delivered_at = parse_datetime(ycloud_data['deliverTime'])
-                        msg.save()
-
-            except YCloudError as e:
-                logger.warning(f'Failed to sync status for message {msg.id}: {e.message}')
+    # Sync outbound statuses from YCloud
+    updated = sync_message_statuses(
+        messages,
+        status_enum=MessageStatus,
+        ycloud_service=ycloud_service,
+        direction_outbound=MessageDirection.OUTBOUND,
+        terminal_statuses={MessageStatus.READ, MessageStatus.FAILED},
+    )
+    for msg in updated:
+        msg.save()
 
     serializer = WhatsAppMessageSerializer(messages, many=True)
 

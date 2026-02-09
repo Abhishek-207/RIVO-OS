@@ -308,7 +308,9 @@ class ClientDetailSerializer(serializers.ModelSerializer):
             return None
 
     def get_phone_locked(self, obj) -> bool:
-        """Phone is locked once WhatsApp messaging has started."""
+        """Phone is locked once WhatsApp messaging has started (uses annotation)."""
+        if hasattr(obj, '_has_whatsapp'):
+            return obj._has_whatsapp
         from whatsapp.models import WhatsAppMessage
         return WhatsAppMessage.objects.filter(client=obj).exists()
 

@@ -496,6 +496,7 @@ class Case(AuditableModel):
             models.Index(fields=['client'], name='cases_client_idx'),
             models.Index(fields=['created_at'], name='cases_created_at_idx'),
             models.Index(fields=['assigned_to'], name='cases_assigned_to_idx'),
+            models.Index(fields=['stage_changed_at'], name='cases_stage_changed_idx'),
         ]
         verbose_name_plural = 'cases'
 

@@ -11,8 +11,7 @@ import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from django.db.models import Sum, Value, Count
-from django.db.models.functions import Coalesce
+from django.db.models import Count
 from django.utils import timezone
 from rest_framework import status
 from users.permissions import IsAuthenticated
@@ -22,6 +21,7 @@ from rest_framework.views import APIView
 from acquisition_channels.models import Channel, Source
 from cases.models import Case, CaseStage, StageSLAConfig, TERMINAL_STAGES
 from clients.models import Client
+from common.analytics import get_pipeline_counts, get_avg_response_minutes
 from leads.models import Lead
 from users.models import UserRole
 
@@ -116,58 +116,32 @@ class DashboardAnalyticsView(APIView):
         return start, end
 
     def _compute_overall(self, source_ids, start_dt, end_dt):
-        leads = Lead.objects.filter(source_id__in=source_ids, created_at__range=(start_dt, end_dt)).count()
-        clients = Client.objects.filter(source_id__in=source_ids, created_at__range=(start_dt, end_dt)).count()
-        cases_count = Case.objects.filter(client__source_id__in=source_ids, created_at__range=(start_dt, end_dt)).count()
-
-        disbursed_qs = Case.objects.filter(
-            client__source_id__in=source_ids,
-            stage=CaseStage.DISBURSED,
-            stage_changed_at__range=(start_dt, end_dt),
-        )
-        total_disbursed = disbursed_qs.aggregate(
-            total=Coalesce(Sum('loan_amount'), Value(Decimal('0')))
-        )['total']
-        loans_count = disbursed_qs.count()
-
+        counts = get_pipeline_counts(source_ids, start_dt, end_dt)
         breaches = self._count_breaches(source_ids, start_dt, end_dt)
 
         return {
-            'total_disbursed': str(total_disbursed),
-            'revenue': str((total_disbursed * REVENUE_RATE).quantize(Decimal('0.01'))),
-            'total_leads': leads,
-            'total_clients': clients,
-            'total_cases': cases_count,
-            'loans_count': loans_count,
+            'total_disbursed': str(counts['total_disbursed']),
+            'revenue': str((counts['total_disbursed'] * REVENUE_RATE).quantize(Decimal('0.01'))),
+            'total_leads': counts['leads_count'],
+            'total_clients': counts['clients_count'],
+            'total_cases': counts['cases_count'],
+            'loans_count': counts['loans_count'],
             'sla_breaches': breaches,
         }
 
     def _compute_row(self, name, source_ids, start_dt, end_dt, monthly_spend=None, row_id=''):
-        leads = Lead.objects.filter(source_id__in=source_ids, created_at__range=(start_dt, end_dt)).count()
-        clients = Client.objects.filter(source_id__in=source_ids, created_at__range=(start_dt, end_dt)).count()
-        cases_count = Case.objects.filter(client__source_id__in=source_ids, created_at__range=(start_dt, end_dt)).count()
-
-        disbursed_qs = Case.objects.filter(
-            client__source_id__in=source_ids,
-            stage=CaseStage.DISBURSED,
-            stage_changed_at__range=(start_dt, end_dt),
-        )
-        loans_count = disbursed_qs.count()
-        total_disbursed = disbursed_qs.aggregate(
-            total=Coalesce(Sum('loan_amount'), Value(Decimal('0')))
-        )['total']
-
+        counts = get_pipeline_counts(source_ids, start_dt, end_dt)
         breaches = self._count_breaches(source_ids, start_dt, end_dt)
 
         return {
             'id': row_id,
             'name': name,
             'monthly_spend': str(monthly_spend) if monthly_spend else None,
-            'leads_count': leads,
-            'clients_count': clients,
-            'cases_count': cases_count,
-            'loans_count': loans_count,
-            'total_disbursed': str(total_disbursed),
+            'leads_count': counts['leads_count'],
+            'clients_count': counts['clients_count'],
+            'cases_count': counts['cases_count'],
+            'loans_count': counts['loans_count'],
+            'total_disbursed': str(counts['total_disbursed']),
             'sla_breaches': breaches,
         }
 
@@ -175,44 +149,21 @@ class DashboardAnalyticsView(APIView):
         """Source-level row for channel owners with lead quality + avg response time."""
         sid = [source.id]
         leads_qs = Lead.objects.filter(source_id__in=sid, created_at__range=(start_dt, end_dt))
-        leads_count = leads_qs.count()
         converted = leads_qs.filter(converted_client_id__isnull=False).count()
         declined = leads_qs.filter(status='declined').count()
 
-        clients = Client.objects.filter(source_id__in=sid, created_at__range=(start_dt, end_dt)).count()
-        cases_count = Case.objects.filter(client__source_id__in=sid, created_at__range=(start_dt, end_dt)).count()
-
-        disbursed_qs = Case.objects.filter(
-            client__source_id__in=sid,
-            stage=CaseStage.DISBURSED,
-            stage_changed_at__range=(start_dt, end_dt),
-        )
-        total_disbursed = disbursed_qs.aggregate(
-            total=Coalesce(Sum('loan_amount'), Value(Decimal('0')))
-        )['total']
-
-        # Avg response time in minutes
-        responded = leads_qs.filter(first_response_at__isnull=False)
-        avg_response_minutes = None
-        if responded.exists():
-            total_mins = 0
-            count = 0
-            for lead in responded.only('created_at', 'first_response_at'):
-                diff = (lead.first_response_at - lead.created_at).total_seconds() / 60
-                total_mins += diff
-                count += 1
-            if count > 0:
-                avg_response_minutes = round(total_mins / count)
-
+        counts = get_pipeline_counts(sid, start_dt, end_dt)
+        leads_count = counts['leads_count']
+        avg_response_minutes = get_avg_response_minutes(leads_qs)
         breaches = self._count_breaches(sid, start_dt, end_dt)
 
         return {
             'id': str(source.id),
             'name': source.name,
             'leads_count': leads_count,
-            'clients_count': clients,
-            'cases_count': cases_count,
-            'total_disbursed': str(total_disbursed),
+            'clients_count': counts['clients_count'],
+            'cases_count': counts['cases_count'],
+            'total_disbursed': str(counts['total_disbursed']),
             'sla_breaches': breaches,
             'converted_pct': round(converted / leads_count * 100, 1) if leads_count > 0 else 0,
             'declined_pct': round(declined / leads_count * 100, 1) if leads_count > 0 else 0,

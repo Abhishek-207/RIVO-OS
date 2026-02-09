@@ -9,7 +9,6 @@ from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -24,25 +23,10 @@ from cases.serializers import (
     CaseReassignSerializer,
 )
 from clients.models import Client, ClientStatus
+from common.pagination import StandardPagination
 from users.permissions import IsAuthenticated, IsChannelOwnerOrAdmin, CanAccessCases
 
 logger = logging.getLogger(__name__)
-
-
-class CasePagination(PageNumberPagination):
-    """Custom pagination for cases with configurable page size."""
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-    def get_paginated_response(self, data):
-        return Response({
-            'items': data,
-            'total': self.page.paginator.count,
-            'page': self.page.number,
-            'page_size': self.get_page_size(self.request),
-            'total_pages': self.page.paginator.num_pages,
-        })
 
 
 class CaseViewSet(viewsets.ModelViewSet):
@@ -66,7 +50,7 @@ class CaseViewSet(viewsets.ModelViewSet):
         'assigned_to',
     ).order_by('-created_at')
     permission_classes = [IsAuthenticated, CanAccessCases]
-    pagination_class = CasePagination
+    pagination_class = StandardPagination
 
     # Disable delete action
     http_method_names = ['get', 'post', 'patch', 'head', 'options']

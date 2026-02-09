@@ -49,21 +49,8 @@ class LeadTrackingService:
         if len(normalized) < 10:
             return None
 
-        # Try direct match on last 10 digits
         last_10 = normalized[-10:]
-
-        # Use icontains for flexible matching
-        leads = Lead.objects.filter(phone__endswith=last_10)
-        if leads.exists():
-            return leads.first()
-
-        # Fallback: check all leads with manual normalization
-        for lead in Lead.objects.all():
-            lead_normalized = LeadTrackingService.normalize_phone(lead.phone)
-            if len(lead_normalized) >= 10 and lead_normalized[-10:] == last_10:
-                return lead
-
-        return None
+        return Lead.objects.filter(phone__endswith=last_10).first()
 
     @staticmethod
     def find_lead_by_ycloud_contact(ycloud_contact_id: str) -> Lead | None:

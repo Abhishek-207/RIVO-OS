@@ -421,6 +421,7 @@ class Client(AuditableModel):
             models.Index(fields=['source'], name='clients_source_idx'),
             models.Index(fields=['created_at'], name='clients_created_at_idx'),
             models.Index(fields=['assigned_to'], name='clients_assigned_to_idx'),
+            models.Index(fields=['phone'], name='clients_phone_idx'),
         ]
 
     def __str__(self) -> str:
