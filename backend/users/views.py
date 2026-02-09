@@ -108,12 +108,14 @@ def login_view(request: Request) -> Response:
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
+            logger.warning(f"Login failed: user not found username={username}")
             return Response(
                 {'error': 'Invalid username or password.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
         if not user.is_active:
+            logger.warning(f"Login failed: deactivated user={username} id={user.id}")
             return Response(
                 {'error': 'User account is deactivated.'},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -122,6 +124,7 @@ def login_view(request: Request) -> Response:
         # Local auth: check password hash
         if USE_LOCAL_AUTH:
             if not user.check_password(password):
+                logger.warning(f"Login failed: bad password user={username} id={user.id}")
                 return Response(
                     {'error': 'Invalid username or password.'},
                     status=status.HTTP_401_UNAUTHORIZED
@@ -129,6 +132,7 @@ def login_view(request: Request) -> Response:
 
             token = generate_jwt_token(user)
             permissions = get_user_permissions(user)
+            logger.info(f"Login successful: user={username} id={user.id} role={user.role}")
             return Response({
                 'access_token': token,
                 'user': {
@@ -155,6 +159,7 @@ def login_view(request: Request) -> Response:
             )
 
         permissions = get_user_permissions(user)
+        logger.info(f"Login successful: user={username} id={user.id} role={user.role}")
         return Response({
             'access_token': auth_response.session.access_token,
             'refresh_token': auth_response.session.refresh_token,
@@ -185,6 +190,9 @@ def logout_view(request: Request) -> Response:
     POST /auth/logout
     JWT is stateless so just return success. Client clears the token.
     """
+    user = getattr(request, 'user', None)
+    if user and hasattr(user, 'username'):
+        logger.info(f"Logout: user={user.username} id={user.id}")
     return Response({'message': 'Logged out successfully.'})
 
 
@@ -260,9 +268,11 @@ def reset_all_passwords_view(request: Request) -> Response:
             user.set_password(new_password)
             user.save()
 
+        count = users.count()
+        logger.info(f"Reset all passwords: count={count} by={request.user.username}")
         return Response({
-            'message': f'Password reset for {users.count()} users.',
-            'count': users.count()
+            'message': f'Password reset for {count} users.',
+            'count': count
         })
 
     except Exception as e:
@@ -406,6 +416,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 else:
                     user.set_password(password)
                 user.save()
+                logger.info(f"User created: username={username} role={role} by={request.user.username}")
 
                 return Response(
                     UserDetailSerializer(user).data,
@@ -435,6 +446,7 @@ class UserViewSet(viewsets.ModelViewSet):
                 supabase_auth_id=auth_response.user.id,
             )
 
+            logger.info(f"User created: username={username} role={role} by={request.user.username}")
             return Response(
                 UserDetailSerializer(user).data,
                 status=status.HTTP_201_CREATED

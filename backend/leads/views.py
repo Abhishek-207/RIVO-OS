@@ -681,6 +681,7 @@ def lead_ingest(request):
         errors['channel'] = 'channel is required.'
 
     if errors:
+        logger.warning(f"Lead ingest validation failed: {errors}")
         return Response({'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
 
     # --- Find or create Campaign ---
@@ -734,6 +735,7 @@ def lead_ingest(request):
             existing_lead.save(update_fields=updated + ['updated_at'])
 
         existing_lead.refresh_from_db()
+        logger.info(f"Lead ingest duplicate: id={existing_lead.id} phone={phone} updated={updated}")
         return Response({
             'lead_id': str(existing_lead.id),
             'lead_name': existing_lead.name,
@@ -761,6 +763,7 @@ def lead_ingest(request):
         LeadTrackingService.broadcast_lead_update(lead, 'new_lead')
 
         lead.refresh_from_db()
+        logger.info(f"Lead ingested: id={lead.id} phone={phone} source={campaign_name} channel={channel_name}")
         return Response({
             'lead_id': str(lead.id),
             'lead_name': lead.name,
@@ -769,6 +772,7 @@ def lead_ingest(request):
         }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
+        logger.error(f"Lead ingest failed: phone={phone} error={str(e)}", exc_info=True)
         return Response(
             {'error': f'Failed to create lead: {str(e)}'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

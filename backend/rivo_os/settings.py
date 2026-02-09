@@ -187,6 +187,48 @@ SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET', '')
 # Django Channels / ASGI configuration
 ASGI_APPLICATION = 'rivo_os.asgi.application'
 
+# Logging configuration
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            '()': 'pythonjsonlogger.json.JsonFormatter',
+            'format': '%(asctime)s %(name)s %(levelname)s %(message)s',
+        },
+        'console': {
+            'format': '%(asctime)s %(levelname)s [%(name)s] %(message)s',
+            'datefmt': '%H:%M:%S',
+        },
+    },
+    'handlers': {
+        'default': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'console' if DEBUG else 'json',
+        },
+    },
+    'root': {
+        'handlers': ['default'],
+        'level': 'WARNING',
+    },
+    'loggers': {
+        'users': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'leads': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'clients': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'cases': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'documents': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'whatsapp': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'campaigns': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'analytics': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'acquisition_channels': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'audit': {'handlers': ['default'], 'level': LOG_LEVEL, 'propagate': False},
+        'django': {'handlers': ['default'], 'level': 'WARNING', 'propagate': False},
+        'django.request': {'handlers': ['default'], 'level': 'WARNING', 'propagate': False},
+    },
+}
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
