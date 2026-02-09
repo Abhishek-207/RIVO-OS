@@ -16,7 +16,7 @@ import {
 import { cn } from '@/lib/utils'
 import { formatCurrencyAED } from '@/lib/formatters'
 import type { NotableType } from '@/types/audit'
-import type { AnalyticsBreakdownRow, StageFunnelItem } from '@/types/analytics'
+import type { AnalyticsBreakdownRow } from '@/types/analytics'
 import type { CaseStage } from '@/types/mortgage'
 
 const stageColors: Record<CaseStage, string> = {
