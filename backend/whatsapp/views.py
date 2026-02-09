@@ -64,7 +64,6 @@ def get_client_messages(request, client_id):
                         if ycloud_data.get('deliverTime'):
                             msg.delivered_at = parse_datetime(ycloud_data['deliverTime'])
                         msg.save()
-                        logger.info(f'Updated message {msg.id} status to {new_status}')
 
             except YCloudError as e:
                 logger.warning(f'Failed to sync status for message {msg.id}: {e.message}')
@@ -135,8 +134,6 @@ def send_message(request):
         whatsapp_message.status = MessageStatus.SENT
         whatsapp_message.sent_at = timezone.now()
         whatsapp_message.save()
-
-        logger.info(f'WhatsApp message sent to client {client_id}: {whatsapp_message.id}')
 
         return Response({
             'success': True,
@@ -225,8 +222,6 @@ def send_template_message(request):
         whatsapp_message.sent_at = timezone.now()
         whatsapp_message.save()
 
-        logger.info(f'WhatsApp template "{template_name}" sent to client {client_id}: {whatsapp_message.id}')
-
         return Response({
             'success': True,
             'message': WhatsAppMessageSerializer(whatsapp_message).data,
@@ -278,8 +273,6 @@ def webhook(request):
         payload = request.data
         event_type = payload.get('type', '')
 
-        logger.info(f'Received webhook event: {event_type}')
-
         if event_type == 'whatsapp.inbound_message.received':
             return handle_inbound_message(payload)
         elif event_type == 'whatsapp.message.updated':
@@ -287,7 +280,6 @@ def webhook(request):
         elif event_type == 'contact.attributes_changed':
             return handle_contact_attributes_changed(payload)
         else:
-            logger.info(f'Unhandled webhook event type: {event_type}')
             return Response({'status': 'ignored'}, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -352,15 +344,12 @@ def handle_inbound_message(payload):
     else:
         content = f'[{message_type}]'
 
-    logger.info(f'Inbound message from {from_number}: {content[:50]}...')
-
     # Find client by phone number (normalize phone number for matching)
     normalized_phone = normalize_phone_for_lookup(from_number)
     client = find_client_by_phone(normalized_phone)
 
     if not client:
         # No client found - handle as a LEAD (campaign response)
-        logger.info(f'No client found for {from_number}, processing as lead campaign response')
         return handle_lead_inbound_response(
             from_number=from_number,
             customer_name=customer_name,
@@ -374,7 +363,6 @@ def handle_inbound_message(payload):
 
     # Check for duplicate message
     if WhatsAppMessage.objects.filter(ycloud_message_id=ycloud_message_id).exists():
-        logger.info(f'Duplicate message ignored: {ycloud_message_id}')
         return Response({'status': 'duplicate'}, status=status.HTTP_200_OK)
 
     # Create the message record for existing client
@@ -389,8 +377,6 @@ def handle_inbound_message(payload):
         sent_at=parse_datetime(send_time) if send_time else timezone.now(),
         delivered_at=timezone.now(),
     )
-
-    logger.info(f'Saved inbound message {whatsapp_message.id} for client {client.id}')
 
     # Broadcast to WebSocket for real-time update
     broadcast_message_to_websocket(client.id, whatsapp_message)
@@ -446,15 +432,10 @@ def handle_lead_inbound_response(
                     matched_campaign = campaign_tpl.campaign
 
         if not matched_campaign:
-            logger.info(
-                f'Inbound message from {from_number} does not match any registered campaign, ignoring'
-            )
             return Response(
                 {'status': 'ignored', 'reason': 'no matching campaign'},
                 status=status.HTTP_200_OK
             )
-
-        logger.info(f'Matched campaign "{matched_campaign.name}" for new lead from {from_number}')
 
         # Auto-create source under "WhatsApp" channel using the campaign name
         if matched_campaign.source_id:
@@ -475,7 +456,6 @@ def handle_lead_inbound_response(
 
     # Check for duplicate in lead messages
     if LeadMessage.objects.filter(ycloud_message_id=ycloud_message_id).exists():
-        logger.info(f'Duplicate lead message ignored: {ycloud_message_id}')
         return Response({'status': 'duplicate', 'type': 'lead'}, status=status.HTTP_200_OK)
 
     try:
@@ -491,8 +471,6 @@ def handle_lead_inbound_response(
             campaign_source_id=campaign_source_id,
             metadata={'raw_payload': raw_payload}
         )
-
-        logger.info(f'Created/updated lead {lead.id} from campaign response')
 
         return Response({
             'status': 'success',
@@ -547,7 +525,6 @@ def handle_contact_attributes_changed(payload):
     tags_change = changed_attrs.get('tags', {})
 
     if not tags_change:
-        logger.info('No tag change in contact.attributes_changed event')
         return Response({'status': 'ignored', 'reason': 'no tag change'}, status=status.HTTP_200_OK)
 
     old_tags = tags_change.get('oldValue', [])
@@ -578,8 +555,6 @@ def _process_tag_change(ycloud_contact_id, phone, old_tags, new_tags, action, ch
     """Process a single tag change."""
     from leads.services import LeadTrackingService
 
-    logger.info(f'Tag change for {phone}: {action} "{changed_tag}"')
-
     lead = LeadTrackingService.handle_tag_change(
         ycloud_contact_id=ycloud_contact_id,
         phone=phone,
@@ -589,9 +564,7 @@ def _process_tag_change(ycloud_contact_id, phone, old_tags, new_tags, action, ch
         changed_tag=changed_tag
     )
 
-    if lead:
-        logger.info(f'Updated lead {lead.id} tags: {new_tags}, status: {lead.campaign_status}')
-    else:
+    if not lead:
         logger.warning(f'Lead not found for tag change: {phone}')
 
 
@@ -623,7 +596,6 @@ def handle_message_status_update(payload):
             if new_status == 'delivered':
                 message.delivered_at = timezone.now()
             message.save()
-            logger.info(f'Updated message {message.id} status to {new_status}')
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
 
@@ -681,8 +653,6 @@ def broadcast_message_to_websocket(client_id, whatsapp_message):
                 'message': message_data
             }
         )
-
-        logger.info(f'Broadcast message {whatsapp_message.id} to WebSocket group whatsapp_{client_id}')
 
     except Exception as e:
         logger.error(f'Failed to broadcast to WebSocket: {e}')

@@ -513,7 +513,7 @@ class LeadViewSet(viewsets.ModelViewSet):
                                 from django.utils.dateparse import parse_datetime
                                 msg.delivered_at = parse_datetime(ycloud_data['deliverTime'])
                             updated_msgs.append(msg)
-                            logger.info(f'Updated lead message {msg.id} status to {new_status}')
+                            pass
 
                 except YCloudError as e:
                     logger.warning(f'Failed to sync status for lead message {msg.id}: {e.message}')
@@ -582,8 +582,6 @@ class LeadViewSet(viewsets.ModelViewSet):
             lead_message.sent_at = timezone.now()
             lead_message.save()
 
-            logger.info(f'WhatsApp message sent to lead {lead.id}: {lead_message.id}')
-
             # Broadcast to WebSocket
             self._broadcast_lead_message(lead, lead_message)
 
@@ -614,7 +612,6 @@ class LeadViewSet(viewsets.ModelViewSet):
 
             channel_layer = get_channel_layer()
             if channel_layer is None:
-                logger.debug('No channel layer configured, skipping WebSocket broadcast')
                 return
 
             message_data = LeadMessageSerializer(message).data
@@ -629,8 +626,6 @@ class LeadViewSet(viewsets.ModelViewSet):
                     }
                 }
             )
-
-            logger.debug(f'Broadcast message {message.id} to WebSocket group lead_whatsapp_{lead.id}')
 
         except Exception as e:
             logger.error(f'Failed to broadcast lead message to WebSocket: {e}')
