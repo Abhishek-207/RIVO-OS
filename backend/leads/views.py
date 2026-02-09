@@ -475,13 +475,14 @@ class LeadViewSet(viewsets.ModelViewSet):
         )
         messages.reverse()  # chronological order for display
 
-        # Sync outbound statuses from YCloud
+        # Sync outbound statuses from YCloud (last 24h only)
         updated = sync_message_statuses(
             messages,
             status_enum=LeadMessageStatus,
             ycloud_service=ycloud_service,
             direction_outbound=MessageDirection.OUTBOUND,
             terminal_statuses={LeadMessageStatus.READ, LeadMessageStatus.FAILED},
+            sent_after=timezone.now() - timedelta(hours=24),
         )
         if updated:
             LeadMessage.objects.bulk_update(updated, ['status', 'delivered_at'])

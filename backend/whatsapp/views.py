@@ -3,6 +3,7 @@ API views for WhatsApp messaging.
 """
 
 import logging
+from datetime import timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
@@ -51,6 +52,7 @@ def get_client_messages(request, client_id):
         ycloud_service=ycloud_service,
         direction_outbound=MessageDirection.OUTBOUND,
         terminal_statuses={MessageStatus.READ, MessageStatus.FAILED},
+        sent_after=timezone.now() - timedelta(hours=24),
     )
     for msg in updated:
         msg.save()

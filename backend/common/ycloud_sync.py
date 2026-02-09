@@ -12,7 +12,10 @@ from django.utils.dateparse import parse_datetime
 logger = logging.getLogger(__name__)
 
 
-def sync_message_statuses(messages, status_enum, ycloud_service, *, direction_outbound, terminal_statuses):
+def sync_message_statuses(
+    messages, status_enum, ycloud_service, *,
+    direction_outbound, terminal_statuses, sent_after=None,
+):
     """
     Sync outbound message statuses from YCloud.
 
@@ -22,6 +25,8 @@ def sync_message_statuses(messages, status_enum, ycloud_service, *, direction_ou
         ycloud_service: the ycloud service instance
         direction_outbound: the outbound direction enum value
         terminal_statuses: set/list of statuses that should NOT be synced (e.g. READ, FAILED)
+        sent_after: optional datetime cutoff — skip messages older than this
+                    (older messages are very likely already in terminal state)
 
     Returns:
         list of messages that were updated (caller can bulk_update if needed)
@@ -41,6 +46,8 @@ def sync_message_statuses(messages, status_enum, ycloud_service, *, direction_ou
         if not msg.ycloud_message_id:
             continue
         if msg.status in terminal_statuses:
+            continue
+        if sent_after and msg.created_at < sent_after:
             continue
 
         try:

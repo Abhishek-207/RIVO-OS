@@ -19,9 +19,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from acquisition_channels.models import Channel, Source
-from cases.models import Case, CaseStage, StageSLAConfig, TERMINAL_STAGES
+from cases.models import Case, CaseStage, TERMINAL_STAGES
 from clients.models import Client
-from common.analytics import get_pipeline_counts, get_avg_response_minutes
+from common.analytics import (
+    get_pipeline_counts, get_avg_response_minutes,
+    count_lead_breaches, count_case_breaches,
+)
 from leads.models import Lead
 from users.models import UserRole
 
@@ -218,43 +221,11 @@ class DashboardAnalyticsView(APIView):
     # Shared
     # ------------------------------------------------------------------
 
-    def _count_breaches(self, source_ids, start_dt, end_dt):
-        """Count SLA breaches for leads and active cases."""
+    @staticmethod
+    def _count_breaches(source_ids, start_dt, end_dt):
+        """Count SLA breaches for leads and active cases (DB-level)."""
         now = timezone.now()
-        count = 0
-
-        leads = Lead.objects.filter(
-            source_id__in=source_ids,
-            created_at__range=(start_dt, end_dt),
-        ).select_related('source', 'source__channel').only(
-            'id', 'created_at', 'first_response_at', 'status', 'converted_client_id',
-            'source__sla_minutes', 'source__channel__default_sla_minutes',
+        return (
+            count_lead_breaches(source_ids, start_dt, end_dt, now)
+            + count_case_breaches(source_ids, start_dt, end_dt, now)
         )
-
-        for lead in leads:
-            sla = lead.sla_minutes
-            if sla is None:
-                continue
-            deadline = lead.created_at + timedelta(minutes=sla)
-            if lead.first_response_at:
-                if lead.first_response_at > deadline:
-                    count += 1
-            elif now > deadline and not lead.is_terminal:
-                count += 1
-
-        cases = Case.objects.filter(
-            client__source_id__in=source_ids,
-            created_at__range=(start_dt, end_dt),
-        ).exclude(
-            stage__in=TERMINAL_STAGES,
-        ).only('id', 'stage', 'stage_changed_at')
-
-        for case in cases:
-            sla_hours = StageSLAConfig.get_sla_for_stage(case.stage)
-            if sla_hours is None:
-                continue
-            deadline = case.stage_changed_at + timedelta(hours=sla_hours)
-            if now > deadline:
-                count += 1
-
-        return count
