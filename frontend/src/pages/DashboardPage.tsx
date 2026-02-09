@@ -252,7 +252,7 @@ function AnalyticsDashboard() {
             {data.stage_funnel.map((s) => (
               <button
                 key={s.stage_key}
-                onClick={() => navigate(`/cases?stage=${s.stage_key}&start_date=${dateRange.start}&end_date=${dateRange.end}`)}
+                onClick={() => navigate(`/cases?stage=${s.stage_key}`)}
                 className={cn(
                   'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-opacity hover:opacity-80',
                   stageColors[s.stage_key as CaseStage] || 'bg-gray-100 text-gray-700'
