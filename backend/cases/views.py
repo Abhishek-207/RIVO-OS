@@ -52,8 +52,18 @@ class CaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, CanAccessCases]
     pagination_class = StandardPagination
 
-    # Disable delete action
-    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def destroy(self, request, *args, **kwargs):
+        case = self.get_object()
+        try:
+            case.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception:
+            return Response(
+                {'error': 'Cannot delete this case. Remove linked documents first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""

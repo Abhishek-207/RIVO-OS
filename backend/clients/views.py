@@ -49,7 +49,7 @@ class ClientViewSet(viewsets.ModelViewSet):
     - POST /clients/{id}/create_case - Create case from client
     - PATCH /clients/{id}/reassign - Reassign client owner (Channel Owner or Admin)
 
-    NO DELETE operation per spec.
+    - DELETE /clients/{id} - Delete client (if no linked cases)
     """
 
     queryset = Client.objects.all().select_related(
@@ -65,6 +65,17 @@ class ClientViewSet(viewsets.ModelViewSet):
     pagination_class = StandardPagination
 
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def destroy(self, request, *args, **kwargs):
+        client = self.get_object()
+        try:
+            client.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Exception:
+            return Response(
+                {'error': 'Cannot delete client with linked cases. Delete the cases first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
