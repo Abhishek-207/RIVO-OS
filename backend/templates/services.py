@@ -178,6 +178,7 @@ class TemplateService:
                 to_number=client.phone,
                 template_name=template.ycloud_template_name,
                 components=components,
+                use_direct=False,
             )
 
             whatsapp_message.ycloud_message_id = ycloud_response.get('id', '')

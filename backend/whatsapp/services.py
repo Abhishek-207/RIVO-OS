@@ -183,7 +183,8 @@ class YCloudService:
         to_number: str,
         template_name: str,
         language_code: str = 'en',
-        components: list = None
+        components: list = None,
+        use_direct: bool = True,
     ) -> dict:
         """
         Send a template message via WhatsApp.
@@ -193,6 +194,8 @@ class YCloudService:
             template_name: Name of the approved template
             language_code: Language code (default: 'en')
             components: Template components with parameters
+            use_direct: If True, use sendDirectly (24-hour window).
+                        If False, use async endpoint (works anytime for approved templates).
 
         Returns:
             dict with YCloud response data
@@ -203,8 +206,10 @@ class YCloudService:
         if not self.api_key or not self.from_number:
             raise YCloudError('WhatsApp integration is not configured. Please contact support.')
 
-        # Use async endpoint — templates are pre-approved and work outside 24-hour window
-        url = f'{YCLOUD_API_BASE_URL}/whatsapp/messages'
+        # sendDirectly = synchronous, requires 24-hour window
+        # /messages = async, works anytime for approved templates (system auto-send)
+        endpoint = 'sendDirectly' if use_direct else 'messages'
+        url = f'{YCLOUD_API_BASE_URL}/whatsapp/{endpoint}'
 
         payload = {
             'from': self.from_number,
