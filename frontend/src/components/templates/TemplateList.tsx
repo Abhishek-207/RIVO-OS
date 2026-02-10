@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Search, Zap } from 'lucide-react'
+import { Plus, Trash2, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Pagination } from '@/components/Pagination'
 import { TablePageLayout, TableCard, TableContainer, PageLoading, PageError, StatusErrorToast } from '@/components/ui/TablePageLayout'
@@ -194,7 +194,6 @@ export function TemplateList() {
                           ? 'bg-blue-50 text-blue-700'
                           : 'bg-gray-100 text-gray-700'
                       )}>
-                        {template.category === 'system' && <Zap className="h-3 w-3" />}
                         {template.category_display}
                       </span>
                     </td>
