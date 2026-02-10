@@ -150,10 +150,16 @@ class TemplateService:
         # Build components
         components = self.build_template_components(template, variables)
 
-        # Fill content for logging (replace {var} with actual values)
+        # Fill content for logging — resolve both {var} and {{N}} placeholders
         filled_content = template.content
+        # Replace Rivo-style {variable} placeholders
         for var_name, var_value in variables.items():
             filled_content = filled_content.replace('{' + var_name + '}', var_value)
+        # Replace YCloud-style {{N}} positional placeholders using variable mapping
+        mapping = template.variable_mapping or {}
+        for position, var_name in mapping.items():
+            value = variables.get(var_name, '')
+            filled_content = filled_content.replace('{{' + position + '}}', value or '-')
 
         # Create message record
         whatsapp_message = WhatsAppMessage.objects.create(
