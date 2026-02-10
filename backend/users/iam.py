@@ -74,7 +74,7 @@ PERMISSIONS = {
     UserRole.MS: {
         Resource.LEADS: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
         Resource.CLIENTS: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
-        Resource.CASES: [Action.VIEW, Action.CREATE, Action.UPDATE],
+        Resource.CASES: [Action.VIEW],
         Resource.TEMPLATES: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
         Resource.BANK_PRODUCTS: [Action.VIEW],
         Resource.USERS: [],
