@@ -263,6 +263,13 @@ class ClientViewSet(viewsets.ModelViewSet):
         client.status = new_status
         client.save()
 
+        # Auto-send system template if configured for this status
+        try:
+            from templates.services import TemplateService
+            TemplateService().trigger_on_client_status_change(client, new_status)
+        except Exception as tmpl_err:
+            logger.warning(f'Template auto-send failed (non-blocking): {tmpl_err}')
+
         return Response(ClientDetailSerializer(client).data)
 
     @action(detail=True, methods=['post'])

@@ -8,10 +8,17 @@ import { api, ApiError } from '@/lib/api'
 export interface MessageTemplate {
   id: string
   name: string
-  category: string
+  category: 'system' | 'general'
   category_display: string
   content: string
   is_active: boolean
+  // System template fields
+  trigger_type: 'case_stage' | 'client_status' | null
+  trigger_type_display: string | null
+  trigger_value: string
+  ycloud_template_name: string
+  variable_mapping: Record<string, string>
+  // Meta
   created_by: string | null
   created_by_name: string | null
   created_at: string
@@ -37,16 +44,46 @@ export interface MessageTemplatesResponse {
 
 interface CreateTemplateData {
   name: string
-  category: string
+  category: 'system' | 'general'
   content: string
   is_active?: boolean
+  trigger_type?: 'case_stage' | 'client_status' | null
+  trigger_value?: string
+  ycloud_template_name?: string
+  variable_mapping?: Record<string, string>
 }
 
 interface UpdateTemplateData {
   name?: string
-  category?: string
+  category?: 'system' | 'general'
   content?: string
   is_active?: boolean
+  trigger_type?: 'case_stage' | 'client_status' | null
+  trigger_value?: string
+  ycloud_template_name?: string
+  variable_mapping?: Record<string, string>
+}
+
+export interface TriggerOption {
+  value: string
+  label: string
+}
+
+export interface TriggerOptions {
+  case_stage: TriggerOption[]
+  client_status: TriggerOption[]
+}
+
+export interface YCloudTemplate {
+  name: string
+  language: string
+  category: string
+  status: string
+  components: Array<{
+    type: string
+    text?: string
+    example?: { body_text?: string[][] }
+  }>
 }
 
 /**
@@ -91,7 +128,7 @@ export function useTemplateCategories() {
     queryFn: async (): Promise<TemplateCategory[]> => {
       return await api.get<TemplateCategory[]>('/message-templates/categories/')
     },
-    staleTime: Infinity, // Categories don't change often
+    staleTime: Infinity,
   })
 }
 
@@ -104,7 +141,33 @@ export function useTemplateVariables() {
     queryFn: async (): Promise<TemplateVariable[]> => {
       return await api.get<TemplateVariable[]>('/message-templates/variables/')
     },
-    staleTime: Infinity, // Variables don't change often
+    staleTime: Infinity,
+  })
+}
+
+/**
+ * Hook for fetching trigger options (case stages + client statuses).
+ */
+export function useTriggerOptions() {
+  return useQuery({
+    queryKey: ['template-trigger-options'],
+    queryFn: async (): Promise<TriggerOptions> => {
+      return await api.get<TriggerOptions>('/message-templates/trigger_options/')
+    },
+    staleTime: Infinity,
+  })
+}
+
+/**
+ * Hook for fetching approved YCloud templates.
+ */
+export function useYCloudTemplates() {
+  return useQuery({
+    queryKey: ['ycloud-templates'],
+    queryFn: async (): Promise<YCloudTemplate[]> => {
+      return await api.get<YCloudTemplate[]>('/message-templates/ycloud_templates/')
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
 

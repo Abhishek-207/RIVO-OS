@@ -36,7 +36,8 @@ export function WhatsAppChat({ messages, isLoading, isSending, onSend, clientInf
   const [showTemplates, setShowTemplates] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<{ name: string; content: string } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const { data: templates } = useMessageTemplates()
+  const { data: allTemplates } = useMessageTemplates()
+  const templates = allTemplates?.filter(t => t.category === 'general')
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

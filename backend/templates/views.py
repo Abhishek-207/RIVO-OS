@@ -2,13 +2,16 @@
 API views for Message Templates.
 """
 
+import logging
+
+from django.db import models
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from users.permissions import IsAuthenticated, CanAccessTemplates
 from users.iam import can, Action, Resource
-from .models import MessageTemplate, TemplateCategory
+from .models import MessageTemplate, TemplateType
 from .serializers import (
     MessageTemplateSerializer,
     MessageTemplateCreateSerializer,
@@ -16,13 +19,14 @@ from .serializers import (
     TemplateVariableSerializer,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class MessageTemplateViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing message templates.
 
     Access controlled by IAM matrix (Resource.TEMPLATES).
-    Admin, MS, and PO have full CRUD. Others per IAM config.
     """
     queryset = MessageTemplate.objects.all()
     serializer_class = MessageTemplateSerializer
@@ -44,7 +48,7 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
         if not can(user, Action.DELETE, Resource.TEMPLATES):
             queryset = queryset.filter(is_active=True)
 
-        # Filter by category
+        # Filter by category (system / general)
         category = self.request.query_params.get('category')
         if category:
             queryset = queryset.filter(category=category)
@@ -65,10 +69,10 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def categories(self, request):
-        """List all available template categories."""
+        """List available template categories (system / general)."""
         categories = [
             {'value': choice[0], 'label': choice[1]}
-            for choice in TemplateCategory.choices
+            for choice in TemplateType.choices
         ]
         serializer = TemplateCategorySerializer(categories, many=True)
         return Response(serializer.data)
@@ -80,6 +84,60 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
         serializer = TemplateVariableSerializer(variables, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'])
+    def trigger_options(self, request):
+        """
+        Return available trigger values for system templates.
 
-# Need to import models for Q lookup
-from django.db import models
+        GET /message-templates/trigger_options/
+        Returns: { case_stage: [...], client_status: [...] }
+        """
+        from cases.models import CaseStage
+        from clients.models import ClientStatus
+
+        return Response({
+            'case_stage': [
+                {'value': s.value, 'label': s.label}
+                for s in CaseStage
+            ],
+            'client_status': [
+                {'value': s.value, 'label': s.label}
+                for s in ClientStatus
+            ],
+        })
+
+    @action(detail=False, methods=['get'])
+    def ycloud_templates(self, request):
+        """
+        Fetch approved WhatsApp templates from YCloud.
+
+        GET /message-templates/ycloud_templates/
+        Returns: list of approved YCloud templates for the dropdown.
+        """
+        from whatsapp.services import YCloudService
+
+        try:
+            ycloud_service = YCloudService()
+            templates = ycloud_service.list_templates()
+
+            # Only return approved templates
+            approved = [
+                {
+                    'name': t.get('name', ''),
+                    'language': t.get('language', 'en'),
+                    'category': t.get('category', ''),
+                    'status': t.get('status', ''),
+                    'components': t.get('components', []),
+                }
+                for t in templates
+                if t.get('status') == 'APPROVED'
+            ]
+
+            return Response(approved)
+
+        except Exception as e:
+            logger.error(f'Failed to fetch YCloud templates: {e}')
+            return Response(
+                {'error': 'Failed to fetch templates from YCloud'},
+                status=status.HTTP_502_BAD_GATEWAY
+            )

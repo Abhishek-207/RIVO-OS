@@ -1,15 +1,21 @@
 /**
  * Side panel for creating and editing message templates.
+ *
+ * Supports two types:
+ * - General: internal templates for manual use in WhatsApp chat
+ * - System: linked to YCloud templates, auto-triggered on stage/status changes
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { X, AlertCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   useCreateTemplate,
   useUpdateTemplate,
-  useTemplateCategories,
+  useTriggerOptions,
+  useYCloudTemplates,
   type MessageTemplate,
+  type YCloudTemplate,
 } from '@/hooks/useMessageTemplates'
 import { TEMPLATE_VARIABLES, previewTemplateWithSampleData } from '@/utils/templateVariables'
 
@@ -22,13 +28,20 @@ interface TemplateFormProps {
 export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps) {
   const isCreateMode = !template
   const [name, setName] = useState(template?.name || '')
-  const [category, setCategory] = useState(template?.category || 'general')
+  const [category, setCategory] = useState<'system' | 'general'>(template?.category || 'general')
   const [content, setContent] = useState(template?.content || '')
   const [isActive, setIsActive] = useState(template?.is_active ?? true)
   const [showPreview, setShowPreview] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  const { data: categories } = useTemplateCategories()
+  // System template fields
+  const [triggerType, setTriggerType] = useState<string>(template?.trigger_type || '')
+  const [triggerValue, setTriggerValue] = useState(template?.trigger_value || '')
+  const [ycloudTemplateName, setYcloudTemplateName] = useState(template?.ycloud_template_name || '')
+  const [variableMapping, setVariableMapping] = useState<Record<string, string>>(template?.variable_mapping || {})
+
+  const { data: triggerOptions } = useTriggerOptions()
+  const { data: ycloudTemplates, isLoading: ycloudLoading } = useYCloudTemplates()
   const createMutation = useCreateTemplate()
   const updateMutation = useUpdateTemplate()
 
@@ -40,8 +53,35 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
       setCategory(template.category)
       setContent(template.content)
       setIsActive(template.is_active)
+      setTriggerType(template.trigger_type || '')
+      setTriggerValue(template.trigger_value || '')
+      setYcloudTemplateName(template.ycloud_template_name || '')
+      setVariableMapping(template.variable_mapping || {})
     }
   }, [template])
+
+  // Get trigger value options based on selected trigger type
+  const triggerValueOptions = useMemo(() => {
+    if (!triggerOptions || !triggerType) return []
+    return triggerType === 'case_stage'
+      ? triggerOptions.case_stage
+      : triggerOptions.client_status
+  }, [triggerOptions, triggerType])
+
+  // Get the selected YCloud template's body variables count
+  const selectedYCloudTemplate = useMemo(() => {
+    if (!ycloudTemplates || !ycloudTemplateName) return null
+    return ycloudTemplates.find(t => t.name === ycloudTemplateName) || null
+  }, [ycloudTemplates, ycloudTemplateName])
+
+  // Extract number of variables from YCloud template body
+  const ycloudVarCount = useMemo(() => {
+    if (!selectedYCloudTemplate) return 0
+    const bodyComponent = selectedYCloudTemplate.components?.find(c => c.type === 'BODY')
+    if (!bodyComponent?.text) return 0
+    const matches = bodyComponent.text.match(/\{\{\d+\}\}/g)
+    return matches ? matches.length : 0
+  }, [selectedYCloudTemplate])
 
   const handleSave = async () => {
     setSaveError(null)
@@ -50,24 +90,47 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
       setSaveError('Name is required')
       return
     }
-    if (!content.trim()) {
+    if (category === 'general' && !content.trim()) {
       setSaveError('Content is required')
       return
     }
 
+    if (category === 'system') {
+      if (!triggerType) {
+        setSaveError('Trigger type is required for system templates')
+        return
+      }
+      if (!triggerValue) {
+        setSaveError('Trigger value is required for system templates')
+        return
+      }
+      if (!ycloudTemplateName) {
+        setSaveError('YCloud template is required for system templates')
+        return
+      }
+    }
+
     try {
+      // For system templates, store YCloud template body as content for activity logs
+      const systemContent = selectedYCloudTemplate?.components?.find(c => c.type === 'BODY')?.text || name.trim()
+
+      const payload = {
+        name: name.trim(),
+        category,
+        content: category === 'system' ? systemContent : content.trim(),
+        is_active: isActive,
+        ...(category === 'system' && {
+          trigger_type: triggerType as 'case_stage' | 'client_status',
+          trigger_value: triggerValue,
+          ycloud_template_name: ycloudTemplateName,
+          variable_mapping: variableMapping,
+        }),
+      }
+
       if (isCreateMode) {
-        await createMutation.mutateAsync({
-          name: name.trim(),
-          category,
-          content: content.trim(),
-          is_active: isActive,
-        })
+        await createMutation.mutateAsync(payload)
       } else {
-        await updateMutation.mutateAsync({
-          id: template!.id,
-          data: { name: name.trim(), category, content: content.trim(), is_active: isActive },
-        })
+        await updateMutation.mutateAsync({ id: template!.id, data: payload })
       }
       onSuccess?.()
       onClose()
@@ -91,6 +154,10 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
     } else {
       setContent(content + `{${varName}}`)
     }
+  }
+
+  const updateVariableMapping = (position: string, varName: string) => {
+    setVariableMapping(prev => ({ ...prev, [position]: varName }))
   }
 
   return (
@@ -120,6 +187,37 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
             </div>
           )}
 
+          {/* Template Type Toggle */}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">Template Type</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCategory('general')}
+                className={cn(
+                  'flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 border',
+                  category === 'general'
+                    ? 'bg-[#1e3a5f] text-white border-[#1e3a5f]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                )}
+              >
+                General
+              </button>
+              <button
+                type="button"
+                onClick={() => setCategory('system')}
+                className={cn(
+                  'flex-1 py-2.5 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-2 border',
+                  category === 'system'
+                    ? 'bg-[#1e3a5f] text-white border-[#1e3a5f]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                )}
+              >
+                System
+              </button>
+            </div>
+          </div>
+
           {/* Name */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -130,78 +228,179 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
-              placeholder="e.g., Welcome Message"
+              placeholder={category === 'system' ? 'e.g., Preapproval Notification' : 'e.g., Welcome Message'}
             />
           </div>
 
-          {/* Category */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-            >
-              {categories?.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* System Template Config */}
+          {category === 'system' && (
+            <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100 space-y-4">
+              <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Trigger Configuration</h3>
 
-          {/* Variables */}
-          <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="text-xs text-gray-500 mb-2">Available variables (click to insert):</p>
-            <div className="flex flex-wrap gap-1.5">
-              {TEMPLATE_VARIABLES.map((variable) => (
-                <button
-                  key={variable.name}
-                  type="button"
-                  onClick={() => insertVariable(variable.name)}
-                  className="px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-[#1e3a5f] hover:text-white hover:border-[#1e3a5f] transition-colors"
-                  title={variable.description}
+              {/* YCloud Template */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  YCloud Template <span className="text-red-500">*</span>
+                </label>
+                {ycloudLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-gray-500 py-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Loading templates from YCloud...
+                  </div>
+                ) : (
+                  <select
+                    value={ycloudTemplateName}
+                    onChange={(e) => {
+                      setYcloudTemplateName(e.target.value)
+                      setVariableMapping({})
+                    }}
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
+                  >
+                    <option value="">Select approved template...</option>
+                    {ycloudTemplates?.map((t) => (
+                      <option key={t.name} value={t.name}>
+                        {t.name} ({t.language})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {ycloudTemplates && ycloudTemplates.length === 0 && (
+                  <p className="text-[10px] text-amber-600 mt-1">No approved templates found in YCloud. Create and get templates approved in YCloud first.</p>
+                )}
+              </div>
+
+              {/* Trigger Type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Trigger On <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={triggerType}
+                  onChange={(e) => { setTriggerType(e.target.value); setTriggerValue('') }}
+                  className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
                 >
-                  {`{${variable.name}}`}
-                </button>
-              ))}
+                  <option value="">Select trigger type...</option>
+                  <option value="case_stage">Case Stage Change</option>
+                  <option value="client_status">Client Status Change</option>
+                </select>
+              </div>
+
+              {/* Trigger Value */}
+              {triggerType && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    When {triggerType === 'case_stage' ? 'Stage' : 'Status'} Changes To <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={triggerValue}
+                    onChange={(e) => setTriggerValue(e.target.value)}
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
+                  >
+                    <option value="">Select {triggerType === 'case_stage' ? 'stage' : 'status'}...</option>
+                    {triggerValueOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Variable Mapping */}
+              {ycloudVarCount > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Variable Mapping
+                  </label>
+                  <p className="text-[10px] text-gray-500 mb-2">
+                    Map each positional variable in the YCloud template to a Rivo variable.
+                  </p>
+                  <div className="space-y-2">
+                    {Array.from({ length: ycloudVarCount }, (_, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-12 flex-shrink-0">{`{{${i + 1}}}`}</span>
+                        <select
+                          value={variableMapping[String(i + 1)] || ''}
+                          onChange={(e) => updateVariableMapping(String(i + 1), e.target.value)}
+                          className="flex-1 h-8 px-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
+                        >
+                          <option value="">Select variable...</option>
+                          {TEMPLATE_VARIABLES.map(v => (
+                            <option key={v.name} value={v.name}>
+                              {`{${v.name}}`} — {v.description}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Content */}
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Message Content <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              id="template-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Hello {first_name}, thank you for reaching out..."
-              rows={6}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
-            />
-          </div>
-
-          {/* Preview */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowPreview(!showPreview)}
-              className="text-xs text-[#1e3a5f] hover:underline"
-            >
-              {showPreview ? 'Hide Preview' : 'Show Preview'}
-            </button>
-
-            {showPreview && content && (
-              <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
-                <p className="text-[10px] text-gray-500 mb-1.5">Preview with sample data:</p>
-                <div className="text-sm text-gray-900 whitespace-pre-wrap bg-white rounded p-2 border border-gray-200">
-                  {previewTemplateWithSampleData(content)}
+          {/* Variables + Content + Preview — only for General templates */}
+          {category === 'general' && (
+            <>
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <p className="text-xs text-gray-500 mb-2">Available variables (click to insert):</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {TEMPLATE_VARIABLES.map((variable) => (
+                    <button
+                      key={variable.name}
+                      type="button"
+                      onClick={() => insertVariable(variable.name)}
+                      className="px-2 py-1 text-xs bg-white border border-gray-200 rounded hover:bg-[#1e3a5f] hover:text-white hover:border-[#1e3a5f] transition-colors"
+                      title={variable.description}
+                    >
+                      {`{${variable.name}}`}
+                    </button>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Message Content <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  id="template-content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Hello {first_name}, thank you for reaching out..."
+                  rows={6}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+                />
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(!showPreview)}
+                  className="text-xs text-[#1e3a5f] hover:underline"
+                >
+                  {showPreview ? 'Hide Preview' : 'Show Preview'}
+                </button>
+
+                {showPreview && content && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <p className="text-[10px] text-gray-500 mb-1.5">Preview with sample data:</p>
+                    <div className="text-sm text-gray-900 whitespace-pre-wrap bg-white rounded p-2 border border-gray-200">
+                      {previewTemplateWithSampleData(content)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* YCloud template preview — only for System templates with a selected template */}
+          {category === 'system' && selectedYCloudTemplate && (
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+              <p className="text-[10px] text-gray-500 mb-1.5">YCloud Template Preview:</p>
+              <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                {selectedYCloudTemplate.components?.find(c => c.type === 'BODY')?.text || 'No body content'}
+              </p>
+            </div>
+          )}
 
           {/* Status */}
           <div>

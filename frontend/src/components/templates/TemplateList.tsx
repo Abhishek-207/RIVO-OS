@@ -3,14 +3,13 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Search } from 'lucide-react'
+import { Plus, Trash2, Search, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Pagination } from '@/components/Pagination'
 import { TablePageLayout, TableCard, TableContainer, PageLoading, PageError, StatusErrorToast } from '@/components/ui/TablePageLayout'
 import {
   useMessageTemplates,
   useDeleteTemplate,
-  useTemplateCategories,
   type MessageTemplate,
 } from '@/hooks/useMessageTemplates'
 import { TemplateForm } from './TemplateForm'
@@ -21,6 +20,12 @@ const STATUS_TABS: { value: 'all' | 'active' | 'inactive'; label: string }[] = [
   { value: 'inactive', label: 'Inactive' },
 ]
 
+const TYPE_TABS: { value: '' | 'system' | 'general'; label: string }[] = [
+  { value: '', label: 'All Types' },
+  { value: 'system', label: 'System' },
+  { value: 'general', label: 'General' },
+]
+
 const PAGE_SIZE = 10
 
 export function TemplateList() {
@@ -29,7 +34,7 @@ export function TemplateList() {
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
-  const [categoryFilter, setCategoryFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState<'' | 'system' | 'general'>('')
   const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
@@ -44,7 +49,6 @@ export function TemplateList() {
     search: searchQuery || undefined,
     category: categoryFilter || undefined,
   })
-  const { data: categories } = useTemplateCategories()
   const deleteMutation = useDeleteTemplate()
 
   const filteredTemplates = (templates || []).filter(template => {
@@ -78,6 +82,17 @@ export function TemplateList() {
     if (diffDays < 7) return `${diffDays} days ago`
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  const getTriggerLabel = (template: MessageTemplate) => {
+    if (template.category !== 'system' || !template.trigger_value) return null
+    const prefix = template.trigger_type === 'case_stage' ? 'Stage' : 'Status'
+    // Convert snake_case to Title Case
+    const value = template.trigger_value
+      .split('_')
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+    return `${prefix}: ${value}`
   }
 
   if (isLoading) return <PageLoading />
@@ -129,14 +144,11 @@ export function TemplateList() {
           </div>
           <select
             value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1) }}
+            onChange={(e) => { setCategoryFilter(e.target.value as '' | 'system' | 'general'); setCurrentPage(1) }}
             className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
           >
-            <option value="">All Categories</option>
-            {categories?.map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
-              </option>
+            {TYPE_TABS.map((tab) => (
+              <option key={tab.value} value={tab.value}>{tab.label}</option>
             ))}
           </select>
         </div>
@@ -151,53 +163,66 @@ export function TemplateList() {
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="w-1/4 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                <th className="w-1/4 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
-                <th className="w-1/4 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
-                <th className="w-1/4 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Updated</th>
-                <th className="w-12 text-right pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="w-[30%] text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                <th className="w-[12%] text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
+                <th className="w-[22%] text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Trigger</th>
+                <th className="w-[14%] text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Updated</th>
+                <th className="w-[10%] text-right pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedTemplates.map((template) => (
-                <tr
-                  key={template.id}
-                  onClick={() => setSelectedTemplateId(template.id)}
-                  className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
-                >
-                  <td className="py-3">
-                    <div>
-                      <span className="text-xs font-medium text-gray-900 block">{template.name}</span>
-                      <span className="text-[10px] text-gray-500 truncate block max-w-xs">
-                        {template.content.slice(0, 50)}{template.content.length > 50 ? '...' : ''}
+              {paginatedTemplates.map((template) => {
+                const triggerLabel = getTriggerLabel(template)
+                return (
+                  <tr
+                    key={template.id}
+                    onClick={() => setSelectedTemplateId(template.id)}
+                    className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                  >
+                    <td className="py-3">
+                      <div>
+                        <span className="text-xs font-medium text-gray-900 block">{template.name}</span>
+                        <span className="text-[10px] text-gray-500 truncate block max-w-xs">
+                          {template.content.slice(0, 50)}{template.content.length > 50 ? '...' : ''}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3">
+                      <span className={cn(
+                        'px-2 py-0.5 text-xs font-medium rounded inline-flex items-center gap-1',
+                        template.category === 'system'
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'bg-gray-100 text-gray-700'
+                      )}>
+                        {template.category === 'system' && <Zap className="h-3 w-3" />}
+                        {template.category_display}
                       </span>
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <span className="px-2 py-0.5 text-xs font-medium rounded bg-gray-100 text-gray-700">
-                      {template.category_display}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <span className="text-xs text-gray-500">{formatDate(template.created_at)}</span>
-                  </td>
-                  <td className="py-3">
-                    <span className="text-xs text-gray-500">{formatDate(template.updated_at)}</span>
-                  </td>
-                  <td className="py-3 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(template)
-                      }}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="py-3">
+                      {triggerLabel ? (
+                        <span className="text-xs text-gray-600">{triggerLabel}</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="py-3">
+                      <span className="text-xs text-gray-500">{formatDate(template.updated_at)}</span>
+                    </td>
+                    <td className="py-3 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(template)
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </TableContainer>

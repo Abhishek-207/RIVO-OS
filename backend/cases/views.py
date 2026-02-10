@@ -265,6 +265,14 @@ class CaseViewSet(viewsets.ModelViewSet):
 
         try:
             case.change_stage(new_stage)
+
+            # Auto-send system template if configured for this stage
+            try:
+                from templates.services import TemplateService
+                TemplateService().trigger_on_case_stage_change(case, new_stage)
+            except Exception as tmpl_err:
+                logger.warning(f'Template auto-send failed (non-blocking): {tmpl_err}')
+
             return Response(CaseDetailSerializer(case).data)
         except Exception as e:
             logger.error(f'Stage change failed: {str(e)}')

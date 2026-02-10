@@ -42,8 +42,16 @@ function getFirstName(fullName: string | null | undefined): string {
 
 /**
  * Build a map of all available template variables from client/lead data.
+ * Optionally includes case data for case-related variables.
  */
-export function buildVariableMap(data: Partial<ClientData>): Record<string, string> {
+export function buildVariableMap(
+  data: Partial<ClientData>,
+  caseData?: { bank?: string; loan_amount?: string; property_value?: string; rate?: string; stage?: string }
+): Record<string, string> {
+  const today = new Date()
+  const signByDate = new Date(today)
+  signByDate.setDate(signByDate.getDate() + 7)
+
   return {
     // Basic contact info (available for both leads and clients)
     first_name: getFirstName(data.name),
@@ -61,7 +69,15 @@ export function buildVariableMap(data: Partial<ClientData>): Record<string, stri
     company: data.company_name || '',
 
     // Date
-    today: formatDate(new Date()),
+    today: formatDate(today),
+
+    // Case variables
+    bank_name: caseData?.bank || '',
+    loan_amount: formatCurrency(caseData?.loan_amount),
+    property_value: formatCurrency(caseData?.property_value),
+    rate: caseData?.rate ? `${caseData.rate}%` : '',
+    stage: caseData?.stage || '',
+    sign_by_date: formatDate(signByDate),
   }
 }
 
@@ -99,13 +115,26 @@ export function previewTemplateWithSampleData(content: string): string {
     dbr_percentage: '30',
   }
 
-  return fillTemplateVariables(content, sampleData)
+  const sampleCaseData = {
+    bank: 'ADCB',
+    loan_amount: '1500000',
+    property_value: '2000000',
+    rate: '3.99',
+    stage: 'Preapproved',
+  }
+
+  const variables = buildVariableMap(sampleData, sampleCaseData)
+  return content.replace(/\{(\w+)\}/g, (match, key) => {
+    const value = variables[key]
+    return value !== undefined && value !== '' ? value : match
+  })
 }
 
 /**
  * List of available template variables for display in admin.
  */
 export const TEMPLATE_VARIABLES = [
+  // Client variables
   { name: 'first_name', description: 'First name', example: 'Ahmed' },
   { name: 'name', description: 'Full name', example: 'Ahmed Khan' },
   { name: 'phone', description: 'Phone number', example: '+971501234567' },
@@ -116,4 +145,11 @@ export const TEMPLATE_VARIABLES = [
   { name: 'nationality', description: 'Nationality', example: 'Pakistani' },
   { name: 'company', description: 'Company name', example: 'Emirates Group' },
   { name: 'today', description: "Today's date", example: '22 Jan 2026' },
+  // Case variables
+  { name: 'bank_name', description: 'Bank name', example: 'ADCB' },
+  { name: 'loan_amount', description: 'Loan amount', example: '1,500,000' },
+  { name: 'property_value', description: 'Property value', example: '2,000,000' },
+  { name: 'rate', description: 'Interest rate', example: '3.99%' },
+  { name: 'stage', description: 'Current case stage', example: 'Preapproved' },
+  { name: 'sign_by_date', description: 'Sign by date (7 days)', example: '17 Feb 2026' },
 ]

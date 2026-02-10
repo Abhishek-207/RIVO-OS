@@ -42,7 +42,7 @@ export function TemplateListReadOnly() {
 
   const { data: templates, isLoading, error } = useMessageTemplates({
     search: searchQuery || undefined,
-    category: categoryFilter || undefined,
+    category: 'general',
   })
   const { data: categories } = useTemplateCategories()
 
@@ -91,18 +91,6 @@ export function TemplateListReadOnly() {
             onChange={setInputValue}
             placeholder="Search templates..."
           />
-          <select
-            value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value); setCurrentPage(1) }}
-            className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
-          >
-            <option value="">All Categories</option>
-            {categories?.map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {cat.label}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
