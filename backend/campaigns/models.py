@@ -35,7 +35,7 @@ class Campaign(models.Model):
     # Source for attribution (links to acquisition channel)
     source = models.ForeignKey(
         'acquisition_channels.Source',
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         related_name='campaigns',
         null=True,
         blank=True,

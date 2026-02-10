@@ -596,35 +596,6 @@ class LeadViewSet(viewsets.ModelViewSet):
             logger.error(f'Failed to broadcast lead message to WebSocket: {e}')
 
 
-def _fetch_meta_campaign_name(form_id, access_token):
-    """
-    Call Meta Graph API to get the campaign name for a lead form.
-
-    Tries form's ads endpoint first to get the parent campaign name.
-    Falls back to the form name if no ads are linked.
-    Returns campaign name string or None on failure.
-    """
-    import requests as http_requests
-
-    base_url = 'https://graph.facebook.com/v21.0'
-    try:
-        resp = http_requests.get(
-            f'{base_url}/{form_id}/ads',
-            params={'fields': 'campaign{name}', 'limit': 1, 'access_token': access_token},
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            data = resp.json().get('data', [])
-            if data and 'campaign' in data[0]:
-                return data[0]['campaign'].get('name')
-
-        logger.warning(f"Meta API error for form_id={form_id}: {resp.status_code} {resp.text[:200]}")
-        return None
-    except Exception as e:
-        logger.error(f"Meta API call failed for form_id={form_id}: {e}")
-        return None
-
-
 @csrf_exempt
 @api_view(['POST'])
 @authentication_classes([])
@@ -634,26 +605,17 @@ def lead_ingest(request):
     Public lead ingestion endpoint for external form providers (Pabbly, Zapier, etc.).
 
     POST /api/leads/ingest/
-    Body (standard):
+    Body:
     {
         "name": "John Doe",
         "phone": "+971501234567",
         "email": "john@example.com",    (optional)
         "source": "Mortgage Q1 2026",
-        "channel": "Meta"
-    }
-
-    Body (Meta Ads):
-    {
-        "name": "John Doe",
-        "phone": "+971501234567",
-        "email": "john@example.com",    (optional)
-        "access_token": "<meta_access_token>",
-        "form_id": "<meta_form_id>"
+        "channel": "Meta",
+        "form_id": "123456789"          (optional)
     }
 
     Rules:
-    - For Meta Ads: calls Meta Graph API to resolve campaign name from form_id.
     - source (campaign name) MUST start with "Mortgage" (case-insensitive).
     - If no Campaign record exists yet, one is auto-created.
     - A Source is auto-created under an untrusted channel named by channel
@@ -661,24 +623,22 @@ def lead_ingest(request):
     - Duplicate phone with active lead → updates existing lead.
     - Duplicate phone with declined lead → reactivates it.
     """
-    name = (request.data.get('name') or '').strip()
-    phone = (request.data.get('phone') or '').strip()
-    email = (request.data.get('email') or '').strip()
-    campaign_name = (request.data.get('source') or '').strip()
-    channel_name = (request.data.get('channel') or '').strip()
+    # Handle string-encoded JSON (Pabbly sometimes double-encodes)
+    import json as _json
+    data = request.data
+    if isinstance(data, str):
+        try:
+            data = _json.loads(data)
+        except (ValueError, TypeError):
+            logger.error(f"Lead ingest: could not parse request body: {str(data)[:500]}")
+            return Response({'error': 'Invalid JSON in request body.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # --- Meta Ads flow: resolve campaign name from form_id ---
-    access_token = (request.data.get('access_token') or '').strip()
-    form_id = (request.data.get('form_id') or '').strip()
-
-    if access_token and form_id and not campaign_name:
-        campaign_name = _fetch_meta_campaign_name(form_id, access_token) or ''
-        channel_name = 'Meta'
-        if not campaign_name:
-            return Response(
-                {'error': 'Could not resolve campaign name from Meta API.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+    name = (data.get('name') or '').strip()
+    phone = (data.get('phone') or '').strip()
+    email = (data.get('email') or '').strip()
+    campaign_name = (data.get('source') or '').strip()
+    channel_name = (data.get('channel') or '').strip()
+    form_id = (data.get('form_id') or '').strip()
 
     # --- Validation ---
     errors = {}
