@@ -584,6 +584,11 @@ def handle_message_status_update(payload):
             message.status = status_map[new_status]
             if new_status == 'delivered':
                 message.delivered_at = timezone.now()
+            if new_status == 'failed':
+                error_info = message_data.get('error', {})
+                error_msg = error_info.get('message', '') if isinstance(error_info, dict) else str(error_info)
+                message.error_message = error_msg
+                logger.error(f'WhatsApp message {ycloud_message_id} delivery failed: {error_msg} | full_error={error_info}')
             message.save()
 
         return Response({'status': 'success'}, status=status.HTTP_200_OK)
