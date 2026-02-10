@@ -611,8 +611,7 @@ def lead_ingest(request):
         "phone": "+971501234567",
         "email": "john@example.com",    (optional)
         "source": "Mortgage Q1 2026",
-        "channel": "Meta",
-        "form_id": "123456789"          (optional)
+        "channel": "Meta"
     }
 
     Rules:
@@ -638,7 +637,6 @@ def lead_ingest(request):
     email = (data.get('email') or '').strip()
     campaign_name = (data.get('source') or '').strip()
     channel_name = (data.get('channel') or '').strip()
-    form_id = (data.get('form_id') or '').strip()
 
     # --- Validation ---
     errors = {}
