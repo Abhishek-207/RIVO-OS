@@ -1,6 +1,6 @@
 export type UserRole = 'admin' | 'channel_owner' | 'team_leader' | 'mortgage_specialist' | 'process_officer'
 
-export type Resource = 'leads' | 'clients' | 'cases' | 'users' | 'channels' | 'templates' | 'bank_products' | 'teams' | 'audit_logs'
+export type Resource = 'leads' | 'clients' | 'cases' | 'users' | 'channels' | 'templates' | 'bank_products' | 'audit_logs'
 
 export interface ResourcePermissions {
   view: boolean

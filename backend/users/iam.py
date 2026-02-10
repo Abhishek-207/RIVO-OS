@@ -34,7 +34,6 @@ class Resource(str, Enum):
     CHANNELS = 'channels'
     TEMPLATES = 'templates'
     BANK_PRODUCTS = 'bank_products'
-    TEAMS = 'teams'
     AUDIT_LOGS = 'audit_logs'
 
 
@@ -44,7 +43,6 @@ PERMISSIONS = {
     UserRole.ADMIN: {
         Resource.USERS: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
         Resource.CHANNELS: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
-        Resource.TEAMS: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
         Resource.LEADS: [Action.VIEW],
         Resource.CLIENTS: [Action.VIEW],
         Resource.CASES: [Action.VIEW],
@@ -55,7 +53,6 @@ PERMISSIONS = {
     UserRole.CHANNEL_OWNER: {
         Resource.USERS: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
         Resource.CHANNELS: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
-        Resource.TEAMS: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
         Resource.LEADS: [Action.VIEW],
         Resource.CLIENTS: [Action.VIEW],
         Resource.CASES: [Action.VIEW],
@@ -69,7 +66,7 @@ PERMISSIONS = {
         Resource.CASES: [Action.VIEW, Action.CREATE, Action.UPDATE, Action.DELETE],
         Resource.TEMPLATES: [Action.VIEW, Action.UPDATE],
         Resource.BANK_PRODUCTS: [Action.VIEW],
-        Resource.TEAMS: [Action.VIEW],
+
         Resource.USERS: [],
         Resource.CHANNELS: [],
         Resource.AUDIT_LOGS: [],
@@ -82,7 +79,7 @@ PERMISSIONS = {
         Resource.BANK_PRODUCTS: [Action.VIEW],
         Resource.USERS: [],
         Resource.CHANNELS: [],
-        Resource.TEAMS: [],
+
         Resource.AUDIT_LOGS: [],
     },
     UserRole.PO: {
@@ -93,7 +90,7 @@ PERMISSIONS = {
         Resource.BANK_PRODUCTS: [Action.VIEW],
         Resource.USERS: [],
         Resource.CHANNELS: [],
-        Resource.TEAMS: [],
+
         Resource.AUDIT_LOGS: [],
     },
 }
