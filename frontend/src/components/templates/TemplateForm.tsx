@@ -15,7 +15,6 @@ import {
   useTriggerOptions,
   useYCloudTemplates,
   type MessageTemplate,
-  type YCloudTemplate,
 } from '@/hooks/useMessageTemplates'
 import { TEMPLATE_VARIABLES, previewTemplateWithSampleData } from '@/utils/templateVariables'
 

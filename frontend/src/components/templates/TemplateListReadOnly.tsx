@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/TablePageLayout'
 import {
   useMessageTemplates,
-  useTemplateCategories,
   type MessageTemplate,
 } from '@/hooks/useMessageTemplates'
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch'
@@ -25,7 +24,6 @@ import { useDebouncedSearch } from '@/hooks/useDebouncedSearch'
 const PAGE_SIZE = 10
 
 export function TemplateListReadOnly() {
-  const [categoryFilter, setCategoryFilter] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null)
@@ -44,7 +42,6 @@ export function TemplateListReadOnly() {
     search: searchQuery || undefined,
     category: 'general',
   })
-  const { data: categories } = useTemplateCategories()
 
   // Client-side pagination
   const totalItems = templates?.length || 0
