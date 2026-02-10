@@ -64,8 +64,7 @@ class ClientViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, CanAccessClients]
     pagination_class = StandardPagination
 
-    # Disable destroy action - no delete per spec
-    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action."""
