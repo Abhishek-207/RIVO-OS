@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, Search } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { cn } from '@/lib/utils'
 import { Pagination } from '@/components/Pagination'
 import { TablePageLayout, TableCard, TableContainer, PageLoading, PageError, StatusErrorToast } from '@/components/ui/TablePageLayout'
@@ -36,6 +37,7 @@ export function TemplateList() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [categoryFilter, setCategoryFilter] = useState<'' | 'system' | 'general'>('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [pendingDelete, setPendingDelete] = useState<MessageTemplate | null>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -61,13 +63,14 @@ export function TemplateList() {
   const totalPages = Math.ceil(totalItems / PAGE_SIZE)
   const paginatedTemplates = filteredTemplates.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  const handleDelete = async (template: MessageTemplate) => {
-    if (window.confirm(`Are you sure you want to delete "${template.name}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(template.id)
-      } catch (err) {
-        setStatusError(err instanceof Error ? err.message : 'Failed to delete template')
-      }
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    try {
+      await deleteMutation.mutateAsync(pendingDelete.id)
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to delete template')
+    } finally {
+      setPendingDelete(null)
     }
   }
 
@@ -211,7 +214,7 @@ export function TemplateList() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleDelete(template)
+                          setPendingDelete(template)
                         }}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors"
                         title="Delete"
@@ -242,6 +245,15 @@ export function TemplateList() {
           onSuccess={() => refetch()}
         />
       )}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete Template"
+        message={`Are you sure you want to delete "${pendingDelete?.name}"?`}
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </TablePageLayout>
   )
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, X, AlertCircle, Loader2, Search, ChevronDown, ChevronRight as ChevronRightIcon, Check } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   useChannels,
   useChannel,
@@ -33,6 +34,7 @@ export function ChannelsPage() {
   const [trustFilter, setTrustFilter] = useState<'all' | 'trusted' | 'untrusted'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set())
+  const [pendingDeleteChannel, setPendingDeleteChannel] = useState<ChannelListItem | null>(null)
 
   // Edit panel state
   const [editingSource, setEditingSource] = useState<{ source: Source; isTrusted: boolean } | null>(null)
@@ -73,14 +75,15 @@ export function ChannelsPage() {
     })
   }
 
-  const handleDeleteChannel = async (channel: ChannelListItem) => {
-    if (window.confirm(`Delete "${channel.name}"?`)) {
-      try {
-        await deleteChannelMutation.mutateAsync(channel.id)
-        setExpandedChannels(prev => { const n = new Set(prev); n.delete(channel.id); return n })
-      } catch (err) {
-        setStatusError(err instanceof Error ? err.message : 'Failed to delete')
-      }
+  const confirmDeleteChannel = async () => {
+    if (!pendingDeleteChannel) return
+    try {
+      await deleteChannelMutation.mutateAsync(pendingDeleteChannel.id)
+      setExpandedChannels(prev => { const n = new Set(prev); n.delete(pendingDeleteChannel.id); return n })
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to delete')
+    } finally {
+      setPendingDeleteChannel(null)
     }
   }
 
@@ -152,7 +155,7 @@ export function ChannelsPage() {
                   onToggle={() => toggleChannel(channel.id)}
                   onEditChannel={() => setSelectedChannelId(channel.id)}
                   onEditSource={(source) => setEditingSource({ source, isTrusted: channel.is_trusted })}
-                  onDelete={() => handleDeleteChannel(channel)}
+                  onDelete={() => setPendingDeleteChannel(channel)}
                   onError={(msg) => setStatusError(msg)}
                 />
               ))}
@@ -184,6 +187,15 @@ export function ChannelsPage() {
           onClose={() => setEditingSource(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteChannel}
+        title="Delete Channel"
+        message={`Are you sure you want to delete "${pendingDeleteChannel?.name}"?`}
+        loading={deleteChannelMutation.isPending}
+        onConfirm={confirmDeleteChannel}
+        onCancel={() => setPendingDeleteChannel(null)}
+      />
     </TablePageLayout>
   )
 }
@@ -338,14 +350,15 @@ function SourceRow({
   onError: (msg: string) => void
 }) {
   const deleteMutation = useDeleteSource()
+  const [showConfirm, setShowConfirm] = useState(false)
 
-  const handleDelete = async () => {
-    if (window.confirm(`Delete source "${source.name}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(source.id)
-      } catch (err) {
-        onError(err instanceof Error ? err.message : 'Failed to delete')
-      }
+  const confirmDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(source.id)
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Failed to delete')
+    } finally {
+      setShowConfirm(false)
     }
   }
 
@@ -354,31 +367,42 @@ function SourceRow({
     : 'bg-gray-200 text-gray-500'
 
   return (
-    <tr className="bg-slate-50/70 border-b border-gray-100 hover:bg-slate-100/80 transition-colors">
-      <td className="py-2 pl-4">
-        <span className="text-gray-300">{'\u2514'}</span>
-      </td>
-      <td className="py-2 cursor-pointer" onClick={() => onEditSource(source)}>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-700 hover:text-[#1e3a5f]">{source.name}</span>
-          <span className={cn('px-1.5 py-0.5 text-[10px] font-medium rounded', statusBadge)}>
-            {source.status === 'active' ? 'Active' : 'Inactive'}
+    <>
+      <tr className="bg-slate-50/70 border-b border-gray-100 hover:bg-slate-100/80 transition-colors">
+        <td className="py-2 pl-4">
+          <span className="text-gray-300">{'\u2514'}</span>
+        </td>
+        <td className="py-2 cursor-pointer" onClick={() => onEditSource(source)}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-700 hover:text-[#1e3a5f]">{source.name}</span>
+            <span className={cn('px-1.5 py-0.5 text-[10px] font-medium rounded', statusBadge)}>
+              {source.status === 'active' ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        </td>
+        <td className="py-2"></td>
+        <td className="py-2"></td>
+        <td className="py-2">
+          <span className="text-xs text-gray-500">
+            {source.sla_minutes ? `${source.sla_minutes} min` : source.effective_sla ? `${source.effective_sla} min` : '\u2014'}
           </span>
-        </div>
-      </td>
-      <td className="py-2"></td>
-      <td className="py-2"></td>
-      <td className="py-2">
-        <span className="text-xs text-gray-500">
-          {source.sla_minutes ? `${source.sla_minutes} min` : source.effective_sla ? `${source.effective_sla} min` : '\u2014'}
-        </span>
-      </td>
-      <td className="py-2 text-right">
-        <button onClick={handleDelete} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors" title="Delete">
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </td>
-    </tr>
+        </td>
+        <td className="py-2 text-right">
+          <button onClick={() => setShowConfirm(true)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors" title="Delete">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </td>
+      </tr>
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Delete Source"
+        message={`Are you sure you want to delete "${source.name}"?`}
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setShowConfirm(false)}
+      />
+    </>
   )
 }
 

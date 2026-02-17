@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from 'react'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DocumentChecklist } from './DocumentChecklist'
 import { DocumentPreviewPanel } from './DocumentPreviewPanel'
 import {
@@ -37,6 +38,7 @@ export function CaseDocumentTab({ caseId }: CaseDocumentTabProps) {
 
   const [previewDoc, setPreviewDoc] = useState<ClientDocument | CaseDocument | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const clearError = useCallback(() => setActionError(null), [])
 
@@ -83,16 +85,19 @@ export function CaseDocumentTab({ caseId }: CaseDocumentTabProps) {
     }
   }, [createTypeMutation, handleUpload, showError])
 
-  const handleDelete = useCallback(async (documentId: string) => {
-    if (!window.confirm('Delete this document?')) return
+  const handleDelete = useCallback((documentId: string) => {
+    setPendingDeleteId(documentId)
+  }, [])
 
+  const confirmDelete = useCallback(async () => {
+    if (!pendingDeleteId) return
     try {
       const allItems = [...(checklist?.primary || []), ...(checklist?.co_applicant || [])]
-      const item = allItems.find(i => i.documents.some(d => d.id === documentId))
+      const item = allItems.find(i => i.documents.some(d => d.id === pendingDeleteId))
       const documentTypeId = item?.document_type.id
       const isCustomType = item?.document_type && !item.document_type.is_system
 
-      await deleteMutation.mutateAsync({ caseId, documentId })
+      await deleteMutation.mutateAsync({ caseId, documentId: pendingDeleteId })
 
       if (isCustomType && documentTypeId) {
         await deleteTypeMutation.mutateAsync(documentTypeId)
@@ -101,8 +106,10 @@ export function CaseDocumentTab({ caseId }: CaseDocumentTabProps) {
       await refetch()
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to delete')
+    } finally {
+      setPendingDeleteId(null)
     }
-  }, [caseId, checklist, deleteMutation, deleteTypeMutation, refetch, showError])
+  }, [pendingDeleteId, caseId, checklist, deleteMutation, deleteTypeMutation, refetch, showError])
 
   const handleView = useCallback((document: ClientDocument | CaseDocument) => {
     setPreviewDoc(prev => prev?.id === document.id ? null : document)
@@ -155,6 +162,15 @@ export function CaseDocumentTab({ caseId }: CaseDocumentTabProps) {
           onClose={() => setPreviewDoc(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        title="Delete Document"
+        message="Are you sure you want to delete this document?"
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </div>
   )
 }

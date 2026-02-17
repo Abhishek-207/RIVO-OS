@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from 'react'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DocumentChecklist } from './DocumentChecklist'
 import { JointApplicationChecklist } from './JointApplicationChecklist'
 import { DocumentPreviewPanel } from './DocumentPreviewPanel'
@@ -38,6 +39,7 @@ export function ClientDocumentTab({ clientId }: ClientDocumentTabProps) {
   const [currentApplicantRole, setCurrentApplicantRole] = useState<ApplicantRole>('primary')
   const [previewDoc, setPreviewDoc] = useState<ClientDocument | CaseDocument | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const clearError = useCallback(() => setActionError(null), [])
 
@@ -89,17 +91,21 @@ export function ClientDocumentTab({ clientId }: ClientDocumentTabProps) {
     }
   }, [clientId, currentApplicantRole, createTypeMutation, handleUpload, showError])
 
-  const handleDelete = useCallback(async (documentId: string) => {
-    if (!window.confirm('Delete this document?')) return
+  const handleDelete = useCallback((documentId: string) => {
+    setPendingDeleteId(documentId)
+  }, [])
 
+  const confirmDelete = useCallback(async () => {
+    if (!pendingDeleteId) return
     try {
-      // Delete the document - backend automatically deletes custom document type if it was client-specific
-      await deleteMutation.mutateAsync({ clientId, documentId })
+      await deleteMutation.mutateAsync({ clientId, documentId: pendingDeleteId })
       await refetch()
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Failed to delete')
+    } finally {
+      setPendingDeleteId(null)
     }
-  }, [clientId, deleteMutation, refetch, showError])
+  }, [pendingDeleteId, clientId, deleteMutation, refetch, showError])
 
   const handleView = useCallback((document: ClientDocument | CaseDocument) => {
     setPreviewDoc(prev => prev?.id === document.id ? null : document)
@@ -168,6 +174,15 @@ export function ClientDocumentTab({ clientId }: ClientDocumentTabProps) {
           onClose={() => setPreviewDoc(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        title="Delete Document"
+        message="Are you sure you want to delete this document?"
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </div>
   )
 }

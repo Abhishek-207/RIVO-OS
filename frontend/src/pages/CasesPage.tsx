@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Trash2, ChevronDown, User } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { cn } from '@/lib/utils'
 import {
   useCases,
@@ -148,6 +149,7 @@ export function CasesPage() {
   const [sidePanelOpen, setSidePanelOpen] = useState(false)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<CaseListItem | null>(null)
 
   const deleteMutation = useDeleteCase()
   const [filters, setFilters] = useUrlFilters(DEFAULT_FILTERS)
@@ -184,13 +186,14 @@ export function CasesPage() {
   const totalItems = data?.total || 0
   const totalPages = data?.total_pages || 1
 
-  const handleDelete = async (caseItem: CaseListItem) => {
-    if (window.confirm(`Are you sure you want to delete this case?`)) {
-      try {
-        await deleteMutation.mutateAsync(caseItem.id)
-      } catch (err) {
-        setStatusError(err instanceof Error ? err.message : 'Failed to delete case')
-      }
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    try {
+      await deleteMutation.mutateAsync(pendingDelete.id)
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to delete case')
+    } finally {
+      setPendingDelete(null)
     }
   }
 
@@ -310,7 +313,7 @@ export function CasesPage() {
                         <User className="h-3.5 w-3.5" />
                       </button>
                       {canDelete && (
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(caseItem) }} className="p-1 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors">
+                        <button onClick={(e) => { e.stopPropagation(); setPendingDelete(caseItem) }} className="p-1 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       )}
@@ -333,6 +336,15 @@ export function CasesPage() {
 
       <CaseSidePanel caseId={selectedCaseId} isOpen={sidePanelOpen} onClose={() => { setSidePanelOpen(false); setSelectedCaseId(null) }} />
       {selectedClientId && <ClientSidePanel clientId={selectedClientId} onClose={() => setSelectedClientId(null)} hideCreateCase />}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete Case"
+        message={`Are you sure you want to delete this case for ${pendingDelete?.client.name}?`}
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </TablePageLayout>
   )
 }

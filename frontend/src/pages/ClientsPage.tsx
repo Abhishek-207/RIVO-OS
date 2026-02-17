@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Trash2, Briefcase } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useClients, useDeleteClient } from '@/hooks/useClients'
 import { useBanks } from '@/hooks/useCases'
 import { useSourcesForFilter } from '@/hooks/useChannels'
@@ -132,6 +133,7 @@ export function ClientsPage() {
   const [statusError, setStatusError] = useState<string | null>(null)
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<ClientListItem | null>(null)
 
   const [filters, setFilters] = useUrlFilters(CLIENT_DEFAULT_FILTERS)
 
@@ -167,13 +169,14 @@ export function ClientsPage() {
   const totalItems = data?.total || 0
   const totalPages = data?.total_pages || 1
 
-  const handleDelete = async (client: ClientListItem) => {
-    if (window.confirm(`Are you sure you want to delete ${client.name}?`)) {
-      try {
-        await deleteMutation.mutateAsync(client.id)
-      } catch (err) {
-        setStatusError(err instanceof Error ? err.message : 'Failed to delete client')
-      }
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    try {
+      await deleteMutation.mutateAsync(pendingDelete.id)
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to delete client')
+    } finally {
+      setPendingDelete(null)
     }
   }
 
@@ -271,7 +274,7 @@ export function ClientsPage() {
                         )}
                         {canDelete && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(client) }}
+                            onClick={(e) => { e.stopPropagation(); setPendingDelete(client) }}
                             className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -297,6 +300,15 @@ export function ClientsPage() {
 
       {selectedClientId && <ClientSidePanel clientId={selectedClientId} onClose={() => setSelectedClientId(null)} />}
       {selectedCaseId && <CaseSidePanel caseId={selectedCaseId} isOpen={!!selectedCaseId} onClose={() => setSelectedCaseId(null)} />}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete Client"
+        message={`Are you sure you want to delete ${pendingDelete?.name}?`}
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </TablePageLayout>
   )
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, X, Loader2, Search, Key, Eye, EyeOff, Check } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   useUsers,
   useDeleteUser,
@@ -54,6 +55,7 @@ export function UsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [showSystemPasswordModal, setShowSystemPasswordModal] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<UserData | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
@@ -87,13 +89,14 @@ export function UsersPage() {
 
   const deleteMutation = useDeleteUser()
 
-  const handleDelete = async (user: UserData) => {
-    if (window.confirm(`Are you sure you want to permanently delete ${user.name}?`)) {
-      try {
-        await deleteMutation.mutateAsync(user.id)
-      } catch (err) {
-        setStatusError(err instanceof Error ? err.message : 'Failed to delete user')
-      }
+  const confirmDelete = async () => {
+    if (!pendingDelete) return
+    try {
+      await deleteMutation.mutateAsync(pendingDelete.id)
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to delete user')
+    } finally {
+      setPendingDelete(null)
     }
   }
 
@@ -212,7 +215,7 @@ export function UsersPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleDelete(user)
+                        setPendingDelete(user)
                       }}
                       className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded transition-colors"
                       title="Delete"
@@ -247,6 +250,15 @@ export function UsersPage() {
           onClose={() => setSelectedUserId(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete User"
+        message={`Are you sure you want to permanently delete ${pendingDelete?.name}?`}
+        loading={deleteMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </TablePageLayout>
   )
 }
