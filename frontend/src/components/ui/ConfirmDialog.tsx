@@ -29,14 +29,14 @@ export function ConfirmDialog({
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-[70]" onClick={onCancel} />
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] bg-white z-[70] shadow-xl rounded-xl">
+      <div className="fixed left-1/2 top-[38%] -translate-x-1/2 -translate-y-1/2 w-[360px] bg-white z-[70] shadow-xl rounded-xl">
         <div className="p-4 border-b border-gray-100">
           <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
           <p className="text-xs text-gray-500 mt-1">{message}</p>
         </div>
         <div className="p-4">
-          <div className="p-2.5 bg-red-50 border border-red-100 rounded-lg">
-            <p className="text-xs text-red-600">
+          <div className="p-2.5 bg-amber-50 border border-amber-100 rounded-lg">
+            <p className="text-xs text-amber-700">
               This action cannot be undone.
             </p>
           </div>
