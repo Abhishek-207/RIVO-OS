@@ -730,6 +730,9 @@ def lead_ingest(request):
         )
         lead.save(force_insert=True, update_fields=None)
 
+        # Fire pipeline webhook for new lead
+        update_pipeline_status(lead.id, PipelineStatus.SUBMITTED)
+
         LeadTrackingService.broadcast_lead_update(lead, 'new_lead')
 
         lead.refresh_from_db()
@@ -749,35 +752,3 @@ def lead_ingest(request):
         )
 
 
-@csrf_exempt
-@api_view(['GET'])
-@authentication_classes([])
-@permission_classes([AllowAny])
-def lead_status(request, lead_id):
-    """
-    Public lead status lookup endpoint.
-
-    GET /api/leads/status/<lead_id>/
-
-    Returns the current status of a lead by its ID.
-    """
-    try:
-        lead = Lead.objects.select_related('source__channel').get(id=lead_id)
-    except (Lead.DoesNotExist, ValueError):
-        return Response(
-            {'error': 'Lead not found.'},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    return Response({
-        'lead_id': str(lead.id),
-        'lead_name': lead.name,
-        'phone': lead.phone,
-        'pipeline_status': lead.pipeline_status,
-        'pipeline_status_display': lead.get_pipeline_status_display(),
-        'mortgage_amount': str(lead.mortgage_amount) if lead.mortgage_amount else None,
-        'source': lead.source.name if lead.source else None,
-        'channel': lead.source.channel.name if lead.source and lead.source.channel else None,
-        'created_at': lead.created_at.isoformat(),
-        'updated_at': lead.updated_at.isoformat(),
-    })

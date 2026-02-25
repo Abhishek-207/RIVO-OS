@@ -25,9 +25,42 @@ from acquisition_channels.models import Source
 logger = logging.getLogger(__name__)
 
 
+def _fire_pipeline_webhook(lead_id: str, new_status: str, mortgage_amount=None) -> None:
+    """
+    POST pipeline status update to the partner webhook URL.
+    Runs in background thread to avoid blocking the request.
+    """
+    import threading
+
+    def _send():
+        import requests as http_requests
+        from django.conf import settings as django_settings
+
+        webhook_url = getattr(django_settings, 'PIPELINE_WEBHOOK_URL', '')
+        if not webhook_url:
+            return
+
+        payload = {
+            'lead_id': str(lead_id),
+            'pipeline_status': new_status,
+            'mortgage_amount': str(mortgage_amount) if mortgage_amount else None,
+        }
+
+        try:
+            resp = http_requests.post(webhook_url, json=payload, timeout=10)
+            logger.info(
+                f'Pipeline webhook sent: lead={lead_id} status={new_status} '
+                f'url={webhook_url} response={resp.status_code}'
+            )
+        except Exception as e:
+            logger.error(f'Pipeline webhook failed: lead={lead_id} url={webhook_url} error={e}')
+
+    threading.Thread(target=_send, daemon=True).start()
+
+
 def update_pipeline_status(lead_id, new_status: str) -> None:
     """
-    Update the pipeline_status on a Lead record.
+    Update the pipeline_status on a Lead record and fire webhook.
 
     Called from:
     - lead_ingest: submitted (default)
@@ -42,6 +75,12 @@ def update_pipeline_status(lead_id, new_status: str) -> None:
             pipeline_status=new_status
         )
         logger.info(f'Pipeline status updated: lead={lead_id} status={new_status}')
+
+        # Fire webhook to partner backend
+        lead = Lead.objects.filter(id=lead_id).values('mortgage_amount').first()
+        mortgage_amount = lead['mortgage_amount'] if lead else None
+        _fire_pipeline_webhook(lead_id, new_status, mortgage_amount)
+
     except Exception as e:
         logger.error(f'Failed to update pipeline status: lead={lead_id} error={e}')
 

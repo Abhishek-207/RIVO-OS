@@ -184,6 +184,9 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
 SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET', '')
 
 
+# Pipeline webhook — POST status updates to partner backend
+PIPELINE_WEBHOOK_URL = os.environ.get('PIPELINE_WEBHOOK_URL', '')
+
 # Django Channels / ASGI configuration
 ASGI_APPLICATION = 'rivo_os.asgi.application'
 
