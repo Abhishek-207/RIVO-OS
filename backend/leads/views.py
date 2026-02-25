@@ -683,38 +683,55 @@ def lead_ingest(request):
 
     # --- Duplicate check ---
     existing_lead = LeadTrackingService.find_lead_by_phone(phone)
-    if existing_lead and not existing_lead.converted_client_id:
-        # Only treat as duplicate if the lead hasn't been converted to a client
-        updated = []
-        if name and (not existing_lead.name or existing_lead.name == 'Unknown'):
-            existing_lead.name = name
-            updated.append('name')
-        if email and not existing_lead.email:
-            existing_lead.email = email
-            updated.append('email')
-        if mortgage_amount is not None and not existing_lead.mortgage_amount:
-            existing_lead.mortgage_amount = mortgage_amount
-            updated.append('mortgage_amount')
+    if existing_lead:
+        # Already converted to client — check if client still exists
+        if existing_lead.converted_client_id:
+            from clients.models import Client
+            client_exists = Client.objects.filter(id=existing_lead.converted_client_id).exists()
+            if client_exists:
+                # Client still exists — return existing lead with already_client flag
+                logger.info(f"Lead ingest: already a client. lead={existing_lead.id} phone={phone}")
+                return Response({
+                    'lead_id': str(existing_lead.id),
+                    'lead_name': existing_lead.name,
+                    'already_client': True,
+                    'client_id': str(existing_lead.converted_client_id),
+                    'pipeline_status': existing_lead.pipeline_status,
+                    'created_at': existing_lead.created_at.isoformat(),
+                    'updated_at': existing_lead.updated_at.isoformat(),
+                }, status=status.HTTP_200_OK)
+            # Client was deleted — fall through to create fresh lead below
+        else:
+            # Active/declined lead — update and return
+            updated = []
+            if name and (not existing_lead.name or existing_lead.name == 'Unknown'):
+                existing_lead.name = name
+                updated.append('name')
+            if email and not existing_lead.email:
+                existing_lead.email = email
+                updated.append('email')
+            if mortgage_amount is not None and not existing_lead.mortgage_amount:
+                existing_lead.mortgage_amount = mortgage_amount
+                updated.append('mortgage_amount')
 
-        # Reactivate declined leads
-        if existing_lead.status == LeadStatus.DECLINED:
-            existing_lead.status = LeadStatus.ACTIVE
-            existing_lead.pipeline_status = PipelineStatus.SUBMITTED
-            updated.append('status')
-            updated.append('pipeline_status')
+            # Reactivate declined leads
+            if existing_lead.status == LeadStatus.DECLINED:
+                existing_lead.status = LeadStatus.ACTIVE
+                existing_lead.pipeline_status = PipelineStatus.SUBMITTED
+                updated.append('status')
+                updated.append('pipeline_status')
 
-        if updated:
-            existing_lead.save(update_fields=updated + ['updated_at'])
+            if updated:
+                existing_lead.save(update_fields=updated + ['updated_at'])
 
-        existing_lead.refresh_from_db()
-        logger.info(f"Lead ingest duplicate: id={existing_lead.id} phone={phone} updated={updated}")
-        return Response({
-            'lead_id': str(existing_lead.id),
-            'lead_name': existing_lead.name,
-            'created_at': existing_lead.created_at.isoformat(),
-            'updated_at': existing_lead.updated_at.isoformat(),
-        }, status=status.HTTP_200_OK)
-    # Converted/terminal leads are skipped — a fresh lead will be created below
+            existing_lead.refresh_from_db()
+            logger.info(f"Lead ingest duplicate: id={existing_lead.id} phone={phone} updated={updated}")
+            return Response({
+                'lead_id': str(existing_lead.id),
+                'lead_name': existing_lead.name,
+                'created_at': existing_lead.created_at.isoformat(),
+                'updated_at': existing_lead.updated_at.isoformat(),
+            }, status=status.HTTP_200_OK)
 
     # --- Create lead ---
     try:
