@@ -23,9 +23,9 @@ from datetime import timedelta
 
 from leads.models import (
     Lead, LeadStatus, CampaignStatus, LeadInteraction, LeadMessage,
-    MessageDirection, LeadMessageStatus, LeadMessageType
+    MessageDirection, LeadMessageStatus, LeadMessageType, PipelineStatus
 )
-from leads.services import LeadTrackingService
+from leads.services import LeadTrackingService, update_pipeline_status
 from leads.serializers import (
     LeadChangeStatusSerializer,
     LeadDetailSerializer,
@@ -200,6 +200,10 @@ class LeadViewSet(viewsets.ModelViewSet):
             )
             lead.refresh_from_db()
 
+            # Update pipeline status on decline
+            if new_status == LeadStatus.DECLINED:
+                update_pipeline_status(lead.pk, PipelineStatus.DECLINED)
+
             return Response(LeadDetailSerializer(lead).data)
         except Exception as e:
             logger.error(f'Lead status change failed: {str(e)}')
@@ -249,6 +253,9 @@ class LeadViewSet(viewsets.ModelViewSet):
                 converted_client_id=client.id
             )
             lead.refresh_from_db()
+
+            # Update pipeline status to contacted
+            update_pipeline_status(lead.pk, PipelineStatus.CONTACTED)
 
             return Response({
                 'message': 'Lead converted to client successfully.',
@@ -766,9 +773,8 @@ def lead_status(request, lead_id):
         'lead_id': str(lead.id),
         'lead_name': lead.name,
         'phone': lead.phone,
-        'status': lead.status,
-        'campaign_status': lead.campaign_status,
-        'campaign_status_display': lead.get_campaign_status_display(),
+        'pipeline_status': lead.pipeline_status,
+        'pipeline_status_display': lead.get_pipeline_status_display(),
         'mortgage_amount': str(lead.mortgage_amount) if lead.mortgage_amount else None,
         'source': lead.source.name if lead.source else None,
         'channel': lead.source.channel.name if lead.source and lead.source.channel else None,

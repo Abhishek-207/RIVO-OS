@@ -17,12 +17,66 @@ from django.conf import settings
 from leads.models import (
     Lead, LeadInteraction, LeadMessage,
     CampaignStatus, InteractionType, MessageDirection,
-    LeadMessageType, LeadMessageStatus
+    LeadMessageType, LeadMessageStatus, PipelineStatus
 )
 from leads.constants import TAG_PRIORITY, TAG_TO_STATUS_MAP
 from acquisition_channels.models import Source
 
 logger = logging.getLogger(__name__)
+
+
+def update_pipeline_status(lead_id, new_status: str) -> None:
+    """
+    Update the pipeline_status on a Lead record.
+
+    Called from:
+    - lead_ingest: submitted (default)
+    - lead change_status (declined): declined
+    - lead convert_to_client: contacted
+    - case creation: qualified
+    - case change_stage (preapproved): approved
+    - case change_stage (disbursed): disbursed
+    """
+    try:
+        Lead.objects.filter(id=lead_id).update(
+            pipeline_status=new_status
+        )
+        logger.info(f'Pipeline status updated: lead={lead_id} status={new_status}')
+    except Exception as e:
+        logger.error(f'Failed to update pipeline status: lead={lead_id} error={e}')
+
+
+def update_pipeline_from_case_stage(case) -> None:
+    """
+    Update pipeline_status based on case stage changes.
+    Traces back: Case → Client → Lead (via converted_from_lead).
+    """
+    client = case.client
+    lead = getattr(client, 'converted_from_lead', None)
+    if not lead:
+        # Try via FK
+        if client.converted_from_lead_id:
+            try:
+                lead = Lead.objects.get(id=client.converted_from_lead_id)
+            except Lead.DoesNotExist:
+                return
+        else:
+            return
+
+    if case.stage == 'preapproved':
+        update_pipeline_status(lead.id, PipelineStatus.APPROVED)
+    elif case.stage == 'disbursed':
+        update_pipeline_status(lead.id, PipelineStatus.DISBURSED)
+
+
+def update_pipeline_from_case_created(case) -> None:
+    """
+    Update pipeline_status to 'qualified' when a case is created.
+    Traces back: Case → Client → Lead (via converted_from_lead).
+    """
+    client = case.client
+    if client.converted_from_lead_id:
+        update_pipeline_status(client.converted_from_lead_id, PipelineStatus.QUALIFIED)
 
 
 def get_campaign_service():

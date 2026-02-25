@@ -36,7 +36,7 @@ class LeadListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = [
-            'id', 'name', 'phone', 'email', 'status',
+            'id', 'name', 'phone', 'email', 'status', 'pipeline_status',
             'source', 'mortgage_amount', 'sla_display',
             # Campaign tracking fields
             'campaign_status', 'campaign_status_display', 'current_tags',
@@ -64,7 +64,7 @@ class LeadDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = [
-            'id', 'name', 'phone', 'email', 'intent', 'status',
+            'id', 'name', 'phone', 'email', 'intent', 'status', 'pipeline_status',
             'source', 'mortgage_amount', 'converted_client_id', 'sla_timer', 'is_terminal',
             # Campaign tracking fields
             'ycloud_contact_id', 'campaign_status', 'campaign_status_display',

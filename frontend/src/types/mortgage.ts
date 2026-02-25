@@ -7,6 +7,9 @@
 
 export type LeadStatus = 'active' | 'declined'
 
+// Pipeline Status (external-facing, tracks Lead → Client → Case progression)
+export type PipelineStatus = 'submitted' | 'contacted' | 'qualified' | 'approved' | 'disbursed' | 'declined'
+
 // Campaign Status (for WhatsApp campaign tracking)
 export type CampaignStatus =
   | 'subscriber_pending'
@@ -135,6 +138,7 @@ export interface LeadListItem {
   phone: string
   email: string | null
   status: LeadStatus
+  pipeline_status: PipelineStatus
   source: SourceSummary
   mortgage_amount: string | null
   sla_display: string | null
@@ -158,6 +162,7 @@ export interface LeadData {
   intent: string | null
   mortgage_amount: string | null
   status: LeadStatus
+  pipeline_status: PipelineStatus
   converted_client: string | null
   sla_timer: {
     effective_sla_minutes: number | null

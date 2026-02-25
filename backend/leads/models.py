@@ -28,6 +28,21 @@ class LeadStatus(models.TextChoices):
     DECLINED = 'declined', 'Declined'
 
 
+class PipelineStatus(models.TextChoices):
+    """
+    External-facing pipeline status for the lead's mortgage journey.
+
+    Tracks progression across Lead → Client → Case entities.
+    Returned via the public /api/leads/status/<id>/ endpoint.
+    """
+    SUBMITTED = 'submitted', 'Submitted'
+    CONTACTED = 'contacted', 'Contacted'       # Lead → Client
+    QUALIFIED = 'qualified', 'Qualified'       # Client → Case created
+    APPROVED = 'approved', 'Approved'          # Case preapproved
+    DISBURSED = 'disbursed', 'Disbursed'       # Case disbursed
+    DECLINED = 'declined', 'Declined'          # Lead declined
+
+
 class CampaignStatus(models.TextChoices):
     """
     Campaign-specific status values derived from YCloud tags.
@@ -107,6 +122,13 @@ class Lead(AuditableModel):
         choices=LeadStatus.choices,
         default=LeadStatus.ACTIVE,
         help_text='Current status of the lead'
+    )
+
+    pipeline_status = models.CharField(
+        max_length=20,
+        choices=PipelineStatus.choices,
+        default=PipelineStatus.SUBMITTED,
+        help_text='External-facing pipeline status across Lead → Client → Case'
     )
 
     # Store converted_client_id as UUID for now

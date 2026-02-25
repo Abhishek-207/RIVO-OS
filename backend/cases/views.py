@@ -23,6 +23,7 @@ from cases.serializers import (
     CaseReassignSerializer,
 )
 from clients.models import Client, ClientStatus
+from leads.services import update_pipeline_from_case_created, update_pipeline_from_case_stage
 from common.pagination import StandardPagination
 from users.permissions import IsAuthenticated, IsChannelOwnerOrAdmin, CanAccessCases
 
@@ -198,6 +199,10 @@ class CaseViewSet(viewsets.ModelViewSet):
 
         try:
             case = serializer.save()
+
+            # Update pipeline status to qualified
+            update_pipeline_from_case_created(case)
+
             return Response(
                 CaseDetailSerializer(case).data,
                 status=status.HTTP_201_CREATED
@@ -275,6 +280,9 @@ class CaseViewSet(viewsets.ModelViewSet):
 
         try:
             case.change_stage(new_stage)
+
+            # Update pipeline status (approved/disbursed)
+            update_pipeline_from_case_stage(case)
 
             # Auto-send system template if configured for this stage
             try:
