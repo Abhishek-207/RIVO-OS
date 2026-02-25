@@ -8,7 +8,6 @@ import { api, ApiError } from '@/lib/api'
 import type {
   LeadData,
   LeadListItem,
-  CreateLeadData,
   UpdateLeadData,
   LeadsQueryParams,
   LeadStatus,
@@ -48,30 +47,6 @@ export function useLead(id: string) {
       return await api.get<LeadData>(`/leads/${id}/`)
     },
     enabled: !!id,
-  })
-}
-
-/**
- * Hook for creating a new lead.
- * Only allowed for untrusted channels.
- */
-export function useCreateLead() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: async (data: CreateLeadData) => {
-      try {
-        return await api.post<LeadData>('/leads/', data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to create lead')
-        }
-        throw error
-      }
-    },
-    onSuccess: () => {
-      queryClient.refetchQueries({ queryKey: ['leads'] })
-    },
   })
 }
 

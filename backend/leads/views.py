@@ -28,7 +28,6 @@ from leads.models import (
 from leads.services import LeadTrackingService
 from leads.serializers import (
     LeadChangeStatusSerializer,
-    LeadCreateSerializer,
     LeadDetailSerializer,
     LeadListSerializer,
     LeadUpdateSerializer,
@@ -69,8 +68,6 @@ class LeadViewSet(viewsets.ModelViewSet):
         """Return appropriate serializer based on action."""
         if self.action == 'list':
             return LeadListSerializer
-        elif self.action == 'create':
-            return LeadCreateSerializer
         elif self.action in ['update', 'partial_update']:
             return LeadUpdateSerializer
         elif self.action == 'change_status':
@@ -128,30 +125,11 @@ class LeadViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     def create(self, request: Request) -> Response:
-        """
-        Create a new lead.
-
-        POST /leads
-        Body: { name, phone, email?, source_id, intent? }
-
-        Validates that source belongs to an untrusted channel.
-        Sets status to 'active' by default.
-        """
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        try:
-            lead = serializer.save()
-            return Response(
-                LeadDetailSerializer(lead).data,
-                status=status.HTTP_201_CREATED
-            )
-        except Exception as e:
-            logger.error(f'Lead creation failed: {str(e)}')
-            return Response(
-                {'error': f'Failed to create lead: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        """Leads are created via the public /api/leads/ingest/ endpoint only."""
+        return Response(
+            {'error': 'Lead creation via this endpoint is not supported. Use /api/leads/ingest/ instead.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
 
     def retrieve(self, request: Request, pk=None) -> Response:
         """
@@ -610,12 +588,12 @@ def lead_ingest(request):
         "name": "John Doe",
         "phone": "+971501234567",
         "email": "john@example.com",    (optional)
+        "mortgage_amount": 500000,          (optional)
         "source": "Mortgage Q1 2026",
         "channel": "Meta"
     }
 
     Rules:
-    - source (campaign name) MUST start with "Mortgage" (case-insensitive).
     - If no Campaign record exists yet, one is auto-created.
     - A Source is auto-created under an untrusted channel named by channel
       (e.g. "WhatsApp", "Meta").
@@ -637,6 +615,7 @@ def lead_ingest(request):
     email = (data.get('email') or '').strip()
     campaign_name = (data.get('source') or '').strip()
     channel_name = (data.get('channel') or '').strip()
+    mortgage_amount_raw = data.get('mortgage_amount')
 
     # --- Validation ---
     errors = {}
@@ -646,10 +625,19 @@ def lead_ingest(request):
         errors['phone'] = 'Phone is required.'
     if not campaign_name:
         errors['source'] = 'source is required.'
-    elif not campaign_name.lower().startswith('mortgage'):
-        errors['source'] = 'source must start with "Mortgage".'
     if not channel_name:
         errors['channel'] = 'channel is required.'
+
+    # Parse mortgage_amount
+    mortgage_amount = None
+    if mortgage_amount_raw is not None and str(mortgage_amount_raw).strip():
+        try:
+            from decimal import Decimal, InvalidOperation
+            mortgage_amount = Decimal(str(mortgage_amount_raw).strip())
+            if mortgage_amount < 0:
+                errors['mortgage_amount'] = 'Mortgage amount cannot be negative.'
+        except (InvalidOperation, ValueError):
+            errors['mortgage_amount'] = 'Invalid mortgage amount.'
 
     if errors:
         logger.warning(f"Lead ingest validation failed: {errors}")
@@ -696,6 +684,9 @@ def lead_ingest(request):
         if email and not existing_lead.email:
             existing_lead.email = email
             updated.append('email')
+        if mortgage_amount is not None and not existing_lead.mortgage_amount:
+            existing_lead.mortgage_amount = mortgage_amount
+            updated.append('mortgage_amount')
 
         # Reactivate declined leads
         if existing_lead.status == LeadStatus.DECLINED:
@@ -723,6 +714,7 @@ def lead_ingest(request):
             phone=phone,
             email=email or '',
             source=source_obj,
+            mortgage_amount=mortgage_amount,
             campaign_status=CampaignStatus.SUBSCRIBER_PENDING,
             current_tags=['subscriber_pending'],
             first_response_at=timezone.now(),

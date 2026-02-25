@@ -94,6 +94,14 @@ class Lead(AuditableModel):
         help_text='Notes about the lead intent (optional)'
     )
 
+    mortgage_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text='Requested mortgage amount (optional)'
+    )
+
     status = models.CharField(
         max_length=20,
         choices=LeadStatus.choices,

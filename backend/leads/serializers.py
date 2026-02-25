@@ -37,7 +37,7 @@ class LeadListSerializer(serializers.ModelSerializer):
         model = Lead
         fields = [
             'id', 'name', 'phone', 'email', 'status',
-            'source', 'sla_display',
+            'source', 'mortgage_amount', 'sla_display',
             # Campaign tracking fields
             'campaign_status', 'campaign_status_display', 'current_tags',
             'response_count', 'first_response_at', 'last_response_at',
@@ -65,7 +65,7 @@ class LeadDetailSerializer(serializers.ModelSerializer):
         model = Lead
         fields = [
             'id', 'name', 'phone', 'email', 'intent', 'status',
-            'source', 'converted_client_id', 'sla_timer', 'is_terminal',
+            'source', 'mortgage_amount', 'converted_client_id', 'sla_timer', 'is_terminal',
             # Campaign tracking fields
             'ycloud_contact_id', 'campaign_status', 'campaign_status_display',
             'current_tags', 'response_count', 'first_response_at', 'last_response_at',
@@ -76,50 +76,6 @@ class LeadDetailSerializer(serializers.ModelSerializer):
     def get_sla_timer(self, obj: Lead) -> dict:
         """Get full SLA timer information."""
         return obj.sla_timer
-
-
-class LeadCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating leads.
-
-    Accepts: name, phone, email, source_id, intent
-    Validates that source belongs to an untrusted channel.
-    """
-    source_id = serializers.UUIDField(write_only=True)
-
-    class Meta:
-        model = Lead
-        fields = ['name', 'phone', 'email', 'source_id', 'intent']
-
-    def validate_source_id(self, value):
-        """Validate source exists and belongs to untrusted channel."""
-        try:
-            source = Source.objects.select_related(
-                'channel'
-            ).get(id=value)
-        except Source.DoesNotExist:
-            raise serializers.ValidationError('Source does not exist.')
-
-        if source.channel.is_trusted:
-            raise serializers.ValidationError(
-                f'Leads can only be created from untrusted channels. '
-                f'Channel "{source.channel.name}" is trusted.'
-            )
-
-        return value
-
-    def create(self, validated_data):
-        """Create lead with source_id."""
-        source_id = validated_data.pop('source_id')
-        source = Source.objects.get(id=source_id)
-
-        lead = Lead(
-            source=source,
-            status=LeadStatus.ACTIVE,
-            **validated_data
-        )
-        lead.save()
-        return lead
 
 
 class LeadUpdateSerializer(serializers.ModelSerializer):

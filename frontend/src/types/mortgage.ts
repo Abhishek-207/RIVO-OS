@@ -136,6 +136,7 @@ export interface LeadListItem {
   email: string | null
   status: LeadStatus
   source: SourceSummary
+  mortgage_amount: string | null
   sla_display: string | null
   // Campaign tracking fields
   campaign_status: CampaignStatus
@@ -155,6 +156,7 @@ export interface LeadData {
   email: string | null
   source: SourceSummary
   intent: string | null
+  mortgage_amount: string | null
   status: LeadStatus
   converted_client: string | null
   sla_timer: {
@@ -220,14 +222,6 @@ export interface CampaignDashboardResponse {
   total_responses: number
   response_rate: number
   recent_leads: LeadListItem[]
-}
-
-export interface CreateLeadData {
-  name: string
-  phone: string
-  email?: string
-  source_id: string
-  intent?: string
 }
 
 export interface UpdateLeadData {

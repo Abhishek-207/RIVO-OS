@@ -11,7 +11,6 @@
  * Permission Rules Summary:
  *
  * LEADS PAGE
- * - New Lead button: can('create', 'leads')
  * - Delete button: can('delete', 'leads')
  *
  * CLIENTS PAGE
