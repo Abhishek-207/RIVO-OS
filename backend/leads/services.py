@@ -91,6 +91,8 @@ CASE_STAGE_TO_PIPELINE = {
     'preapproved': PipelineStatus.PREAPPROVED,
     'fol_received': PipelineStatus.FOL_RECEIVED,
     'disbursed': PipelineStatus.DISBURSED,
+    'rejected': PipelineStatus.DECLINED,
+    'not_proceeding': PipelineStatus.DECLINED,
 }
 
 

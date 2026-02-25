@@ -15,6 +15,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from clients.models import Client, ClientStatus, CoApplicant, ClientExtraDetails, ApplicationType
+from leads.models import PipelineStatus
+from leads.services import update_pipeline_status
 from clients.serializers import (
     ClientListSerializer,
     ClientDetailSerializer,
@@ -272,6 +274,10 @@ class ClientViewSet(viewsets.ModelViewSet):
         new_status = serializer.validated_data['status']
         client.status = new_status
         client.save()
+
+        # Update pipeline status on decline/not_proceeding
+        if new_status in (ClientStatus.DECLINED, ClientStatus.NOT_PROCEEDING) and client.converted_from_lead_id:
+            update_pipeline_status(client.converted_from_lead_id, PipelineStatus.DECLINED)
 
         # Auto-send system template if configured for this status
         try:
