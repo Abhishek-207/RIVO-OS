@@ -8,7 +8,7 @@
 export type LeadStatus = 'active' | 'declined'
 
 // Pipeline Status (external-facing, tracks Lead → Client → Case progression)
-export type PipelineStatus = 'submitted' | 'contacted' | 'qualified' | 'approved' | 'disbursed' | 'declined'
+export type PipelineStatus = 'submitted' | 'contacted' | 'qualified' | 'submitted_to_bank' | 'preapproved' | 'fol_received' | 'disbursed' | 'declined'
 
 // Campaign Status (for WhatsApp campaign tracking)
 export type CampaignStatus =

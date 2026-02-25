@@ -33,14 +33,16 @@ class PipelineStatus(models.TextChoices):
     External-facing pipeline status for the lead's mortgage journey.
 
     Tracks progression across Lead → Client → Case entities.
-    Returned via the public /api/leads/status/<id>/ endpoint.
+    Pushed to partner webhook on every change.
     """
     SUBMITTED = 'submitted', 'Submitted'
-    CONTACTED = 'contacted', 'Contacted'       # Lead → Client
-    QUALIFIED = 'qualified', 'Qualified'       # Client → Case created
-    APPROVED = 'approved', 'Approved'          # Case preapproved
-    DISBURSED = 'disbursed', 'Disbursed'       # Case disbursed
-    DECLINED = 'declined', 'Declined'          # Lead declined
+    CONTACTED = 'contacted', 'Contacted'                     # Lead → Client
+    QUALIFIED = 'qualified', 'Qualified'                     # Client → Case created
+    SUBMITTED_TO_BANK = 'submitted_to_bank', 'Submitted to Bank'  # Case stage
+    PREAPPROVED = 'preapproved', 'Preapproved'                  # Case preapproved
+    FOL_RECEIVED = 'fol_received', 'FOL Received'            # Case stage
+    DISBURSED = 'disbursed', 'Disbursed'                     # Case stage
+    DECLINED = 'declined', 'Declined'                        # Lead declined
 
 
 class CampaignStatus(models.TextChoices):

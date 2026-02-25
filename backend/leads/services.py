@@ -85,27 +85,31 @@ def update_pipeline_status(lead_id, new_status: str) -> None:
         logger.error(f'Failed to update pipeline status: lead={lead_id} error={e}')
 
 
+# Map case stages to pipeline statuses (only stages that have system templates)
+CASE_STAGE_TO_PIPELINE = {
+    'submitted_to_bank': PipelineStatus.SUBMITTED_TO_BANK,
+    'preapproved': PipelineStatus.PREAPPROVED,
+    'fol_received': PipelineStatus.FOL_RECEIVED,
+    'disbursed': PipelineStatus.DISBURSED,
+}
+
+
 def update_pipeline_from_case_stage(case) -> None:
     """
     Update pipeline_status based on case stage changes.
     Traces back: Case → Client → Lead (via converted_from_lead).
+    Only fires for stages that have system templates.
     """
-    client = case.client
-    lead = getattr(client, 'converted_from_lead', None)
-    if not lead:
-        # Try via FK
-        if client.converted_from_lead_id:
-            try:
-                lead = Lead.objects.get(id=client.converted_from_lead_id)
-            except Lead.DoesNotExist:
-                return
-        else:
-            return
+    pipeline_status = CASE_STAGE_TO_PIPELINE.get(case.stage)
+    if not pipeline_status:
+        return
 
-    if case.stage == 'preapproved':
-        update_pipeline_status(lead.id, PipelineStatus.APPROVED)
-    elif case.stage == 'disbursed':
-        update_pipeline_status(lead.id, PipelineStatus.DISBURSED)
+    client = case.client
+    lead_id = client.converted_from_lead_id
+    if not lead_id:
+        return
+
+    update_pipeline_status(lead_id, pipeline_status)
 
 
 def update_pipeline_from_case_created(case) -> None:
