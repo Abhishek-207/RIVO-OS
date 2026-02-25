@@ -683,7 +683,8 @@ def lead_ingest(request):
 
     # --- Duplicate check ---
     existing_lead = LeadTrackingService.find_lead_by_phone(phone)
-    if existing_lead:
+    if existing_lead and not existing_lead.converted_client_id:
+        # Only treat as duplicate if the lead hasn't been converted to a client
         updated = []
         if name and (not existing_lead.name or existing_lead.name == 'Unknown'):
             existing_lead.name = name
@@ -698,7 +699,9 @@ def lead_ingest(request):
         # Reactivate declined leads
         if existing_lead.status == LeadStatus.DECLINED:
             existing_lead.status = LeadStatus.ACTIVE
+            existing_lead.pipeline_status = PipelineStatus.SUBMITTED
             updated.append('status')
+            updated.append('pipeline_status')
 
         if updated:
             existing_lead.save(update_fields=updated + ['updated_at'])
@@ -711,6 +714,7 @@ def lead_ingest(request):
             'created_at': existing_lead.created_at.isoformat(),
             'updated_at': existing_lead.updated_at.isoformat(),
         }, status=status.HTTP_200_OK)
+    # Converted/terminal leads are skipped — a fresh lead will be created below
 
     # --- Create lead ---
     try:
