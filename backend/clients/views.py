@@ -56,7 +56,6 @@ class ClientViewSet(viewsets.ModelViewSet):
 
     queryset = Client.objects.all().select_related(
         'source__channel',
-        'source__linked_user',
         'converted_from_lead',
         'assigned_to',
         'co_applicant',  # OneToOne should use select_related

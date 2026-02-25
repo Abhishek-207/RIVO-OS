@@ -623,6 +623,7 @@ def lead_ingest(request):
     campaign_name = (data.get('source') or '').strip()
     channel_name = (data.get('channel') or '').strip()
     mortgage_amount_raw = data.get('mortgage_amount')
+    referrer_phone = (data.get('referrer_phone') or data.get('source_phone') or '').strip()
 
     # --- Validation ---
     errors = {}
@@ -680,6 +681,10 @@ def lead_ingest(request):
         campaign.source = source
         campaign.save(update_fields=['source', 'updated_at'])
         source_id = str(source.id)
+
+    # Store referrer phone on source if provided (marks it as human source)
+    if referrer_phone:
+        Source.objects.filter(id=source_id).exclude(referrer_phone=referrer_phone).update(referrer_phone=referrer_phone)
 
     # --- Duplicate check ---
     existing_lead = LeadTrackingService.find_lead_by_phone(phone)

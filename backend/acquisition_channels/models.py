@@ -127,6 +127,13 @@ class Source(models.Model):
         help_text='Linked MS user (for BH Mortgage Team self-sourcing)'
     )
 
+    referrer_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text='Referrer phone for WhatsApp notifications (human sources)'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
