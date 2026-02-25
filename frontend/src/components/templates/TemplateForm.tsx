@@ -62,6 +62,7 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
   // Get trigger value options based on selected trigger type
   const triggerValueOptions = useMemo(() => {
     if (!triggerOptions || !triggerType) return []
+    if (triggerType === 'referrer_update') return [] // No trigger value needed
     return triggerType === 'case_stage'
       ? triggerOptions.case_stage
       : triggerOptions.client_status
@@ -99,7 +100,7 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
         setSaveError('Trigger type is required for system templates')
         return
       }
-      if (!triggerValue) {
+      if (triggerType !== 'referrer_update' && !triggerValue) {
         setSaveError('Trigger value is required for system templates')
         return
       }
@@ -119,8 +120,8 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
         content: category === 'system' ? systemContent : content.trim(),
         is_active: isActive,
         ...(category === 'system' && {
-          trigger_type: triggerType as 'case_stage' | 'client_status',
-          trigger_value: triggerValue,
+          trigger_type: triggerType as 'case_stage' | 'client_status' | 'referrer_update',
+          trigger_value: triggerType === 'referrer_update' ? 'all' : triggerValue,
           ycloud_template_name: ycloudTemplateName,
           variable_mapping: variableMapping,
         }),
@@ -281,11 +282,21 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
                   <option value="">Select trigger type...</option>
                   <option value="case_stage">Case Stage Change</option>
                   <option value="client_status">Client Status Change</option>
+                  <option value="referrer_update">Referrer Update</option>
                 </select>
               </div>
 
-              {/* Trigger Value */}
-              {triggerType && (
+              {/* Referrer Update Info */}
+              {triggerType === 'referrer_update' && (
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 text-xs text-amber-700">
+                  This template is sent to the referrer (source linked user) whenever any system template fires for a client.
+                  <br />
+                  <span className="font-medium">Available variables:</span> {'{referrer_name}'}, {'{client_name}'}, {'{status}'}, {'{today}'}
+                </div>
+              )}
+
+              {/* Trigger Value — only for case_stage and client_status */}
+              {triggerType && triggerType !== 'referrer_update' && (
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     When {triggerType === 'case_stage' ? 'Stage' : 'Status'} Changes To <span className="text-red-500">*</span>

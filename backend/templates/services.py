@@ -8,7 +8,6 @@ approved YCloud templates when case stages or client statuses change.
 import logging
 from datetime import timedelta
 
-from django.conf import settings
 from django.utils import timezone
 
 from templates.models import MessageTemplate
@@ -128,6 +127,8 @@ class TemplateService:
         """
         Send a system template via YCloud and log as WhatsAppMessage.
 
+        Also sends to the referrer (source.linked_user) if they have a phone.
+
         Args:
             template: MessageTemplate instance (must be system type with ycloud_template_name)
             client: Client instance
@@ -190,7 +191,6 @@ class TemplateService:
                 f'Auto-sent system template "{template.name}" to {client.phone} '
                 f'(ycloud_id={whatsapp_message.ycloud_message_id})'
             )
-            return whatsapp_message
 
         except YCloudError as e:
             whatsapp_message.status = MessageStatus.FAILED
@@ -200,7 +200,101 @@ class TemplateService:
             logger.error(
                 f'Failed to auto-send template "{template.name}" to {client.phone}: {e.message}'
             )
-            return whatsapp_message
+
+        # --- Send same template to referrer (source.linked_user) if they have a phone ---
+        self._send_to_referrer(template, client, components, filled_content)
+
+        return whatsapp_message
+
+    def _send_to_referrer(self, template, client, components, filled_content):
+        """
+        Send the referrer_update system template if source has a linked_user with a phone.
+
+        Looks up the single system template with trigger_type='referrer_update'.
+        Variables: referrer_name, client_name, status, today + all standard client/case vars.
+        Fails silently — never blocks the main send.
+        """
+        referrer_message = None
+        try:
+            source = client.source
+            if not source:
+                return
+
+            linked_user = source.linked_user
+            if not linked_user or not linked_user.phone:
+                return
+
+            # Don't send to referrer if their phone is the same as the client's
+            if linked_user.phone == client.phone:
+                return
+
+            # Look up the single referrer_update template from DB
+            referrer_template = MessageTemplate.objects.filter(
+                category='system',
+                is_active=True,
+                trigger_type='referrer_update',
+            ).first()
+
+            if not referrer_template or not referrer_template.ycloud_template_name:
+                return
+
+            # Status text from the original trigger (e.g. "preapproved" → "Preapproved")
+            status_text = (template.trigger_value or '').replace('_', ' ').title()
+
+            # Build referrer variables (standard vars + referrer-specific ones)
+            referrer_variables = {
+                'referrer_name': _get_first_name(linked_user.name),
+                'client_name': _get_first_name(getattr(client, 'name', '')),
+                'status': status_text,
+                'today': _format_date(timezone.now().date()),
+                # Also include standard client vars in case template uses them
+                'first_name': _get_first_name(getattr(client, 'name', '')),
+                'name': getattr(client, 'name', '') or '',
+                'phone': getattr(client, 'phone', '') or '',
+            }
+
+            # Build components from the referrer template's own variable_mapping
+            referrer_components = self.build_template_components(referrer_template, referrer_variables)
+
+            # Build content for logging
+            referrer_content = f'Referrer update to {linked_user.name}: {client.name} → {status_text}'
+
+            # Create message record
+            referrer_message = WhatsAppMessage.objects.create(
+                client=client,
+                direction=MessageDirection.OUTBOUND,
+                message_type=MessageType.TEMPLATE,
+                content=referrer_content,
+                status=MessageStatus.PENDING,
+                from_number=self.ycloud_service.from_number,
+                to_number=linked_user.phone,
+            )
+
+            ycloud_response = self.ycloud_service.send_template_message(
+                to_number=linked_user.phone,
+                template_name=referrer_template.ycloud_template_name,
+                components=referrer_components,
+                use_direct=False,
+            )
+
+            referrer_message.ycloud_message_id = ycloud_response.get('id', '')
+            referrer_message.status = MessageStatus.SENT
+            referrer_message.sent_at = timezone.now()
+            referrer_message.save()
+
+            logger.info(
+                f'Sent referrer notification to {linked_user.phone} '
+                f'(user={linked_user.name}, status={status_text}, ycloud_id={referrer_message.ycloud_message_id})'
+            )
+
+        except YCloudError as e:
+            logger.warning(f'Failed to send referrer notification: {e.message}')
+            if referrer_message:
+                referrer_message.status = MessageStatus.FAILED
+                referrer_message.error_message = e.message
+                referrer_message.save()
+        except Exception as e:
+            logger.warning(f'Referrer notification failed (non-blocking): {e}')
 
     def trigger_on_case_stage_change(self, case, new_stage):
         """

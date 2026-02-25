@@ -22,6 +22,7 @@ class TriggerType(models.TextChoices):
     """What event triggers a system template."""
     CASE_STAGE = 'case_stage', 'Case Stage Change'
     CLIENT_STATUS = 'client_status', 'Client Status Change'
+    REFERRER_UPDATE = 'referrer_update', 'Referrer Update'
 
 
 class MessageTemplate(models.Model):
@@ -125,4 +126,8 @@ class MessageTemplate(models.Model):
             {'name': 'rate', 'description': 'Interest rate'},
             {'name': 'stage', 'description': 'Current case stage'},
             {'name': 'sign_by_date', 'description': 'Sign by date (7 days from today)'},
+            # Referrer variables (for referrer_update templates)
+            {'name': 'referrer_name', 'description': 'Referrer first name'},
+            {'name': 'client_name', 'description': 'Client first name (alias for referrer templates)'},
+            {'name': 'status', 'description': 'Status update text (e.g. Preapproved, Disbursed)'},
         ]

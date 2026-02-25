@@ -152,4 +152,8 @@ export const TEMPLATE_VARIABLES = [
   { name: 'rate', description: 'Interest rate', example: '3.99%' },
   { name: 'stage', description: 'Current case stage', example: 'Preapproved' },
   { name: 'sign_by_date', description: 'Sign by date (7 days)', example: '17 Feb 2026' },
+  // Referrer variables (for referrer_update templates)
+  { name: 'referrer_name', description: 'Referrer first name', example: 'Sarah' },
+  { name: 'client_name', description: 'Client first name', example: 'Ahmed' },
+  { name: 'status', description: 'Status update text', example: 'Preapproved' },
 ]

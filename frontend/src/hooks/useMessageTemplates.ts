@@ -13,7 +13,7 @@ export interface MessageTemplate {
   content: string
   is_active: boolean
   // System template fields
-  trigger_type: 'case_stage' | 'client_status' | null
+  trigger_type: 'case_stage' | 'client_status' | 'referrer_update' | null
   trigger_type_display: string | null
   trigger_value: string
   ycloud_template_name: string
@@ -47,7 +47,7 @@ interface CreateTemplateData {
   category: 'system' | 'general'
   content: string
   is_active?: boolean
-  trigger_type?: 'case_stage' | 'client_status' | null
+  trigger_type?: 'case_stage' | 'client_status' | 'referrer_update' | null
   trigger_value?: string
   ycloud_template_name?: string
   variable_mapping?: Record<string, string>
@@ -58,7 +58,7 @@ interface UpdateTemplateData {
   category?: 'system' | 'general'
   content?: string
   is_active?: boolean
-  trigger_type?: 'case_stage' | 'client_status' | null
+  trigger_type?: 'case_stage' | 'client_status' | 'referrer_update' | null
   trigger_value?: string
   ycloud_template_name?: string
   variable_mapping?: Record<string, string>

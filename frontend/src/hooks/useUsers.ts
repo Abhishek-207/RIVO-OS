@@ -12,6 +12,7 @@ export interface UserData {
   username: string
   email: string
   name: string
+  phone: string
   role: UserRole
   is_active: boolean
   created_at: string
@@ -37,12 +38,14 @@ export interface CreateUserData {
   username?: string
   email: string
   name: string
+  phone?: string
   role: string
   password: string
 }
 
 export interface UpdateUserData {
   name?: string
+  phone?: string
   role?: string
 }
 

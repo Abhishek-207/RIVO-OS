@@ -19,7 +19,7 @@ class UserListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'role', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'username', 'email', 'name', 'phone', 'role', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
@@ -27,7 +27,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for creating users.
 
-    Accepts: username, email, name, role, password
+    Accepts: username, email, name, role, password, phone
     Password is stored as hash for local auth or used to create Supabase Auth user.
     """
     username = serializers.CharField(
@@ -43,7 +43,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'name', 'role', 'password']
+        fields = ['username', 'email', 'name', 'phone', 'role', 'password']
 
     def validate_username(self, value: str) -> str:
         """Validate username uniqueness."""
@@ -75,7 +75,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['name', 'role']
+        fields = ['name', 'phone', 'role']
 
     def validate_role(self, value: str) -> str:
         """Validate role is one of allowed values."""
@@ -95,7 +95,7 @@ class UserDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'role', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'username', 'email', 'name', 'phone', 'role', 'is_active', 'created_at', 'updated_at']
         read_only_fields = ['id', 'username', 'email', 'created_at', 'updated_at']
 
 

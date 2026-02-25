@@ -64,6 +64,13 @@ class User(models.Model):
         help_text='User email address'
     )
 
+    phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        help_text='Phone number for WhatsApp notifications (e.g. +971501234567)'
+    )
+
     name = models.CharField(
         max_length=255,
         help_text='Full name of the user for display'
