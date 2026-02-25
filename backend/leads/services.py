@@ -60,15 +60,15 @@ def _fire_pipeline_webhook(lead_id: str, new_status: str, mortgage_amount=None) 
 
 def update_pipeline_status(lead_id, new_status: str) -> None:
     """
-    Update the pipeline_status on a Lead record and fire webhook.
+    Update the pipeline_status on a Lead record, fire webhook, and notify referrer.
 
     Called from:
     - lead_ingest: submitted (default)
     - lead change_status (declined): declined
     - lead convert_to_client: contacted
     - case creation: qualified
-    - case change_stage (preapproved): approved
-    - case change_stage (disbursed): disbursed
+    - case change_stage: submitted_to_bank, preapproved, fol_received, disbursed
+    - case/client decline: declined
     """
     try:
         Lead.objects.filter(id=lead_id).update(
@@ -76,13 +76,73 @@ def update_pipeline_status(lead_id, new_status: str) -> None:
         )
         logger.info(f'Pipeline status updated: lead={lead_id} status={new_status}')
 
+        lead = Lead.objects.filter(id=lead_id).select_related('source').first()
+        if not lead:
+            return
+
         # Fire webhook to partner backend
-        lead = Lead.objects.filter(id=lead_id).values('mortgage_amount').first()
-        mortgage_amount = lead['mortgage_amount'] if lead else None
-        _fire_pipeline_webhook(lead_id, new_status, mortgage_amount)
+        _fire_pipeline_webhook(lead_id, new_status, lead.mortgage_amount)
+
+        # Notify referrer if source has referrer_phone
+        _notify_referrer(lead, new_status)
 
     except Exception as e:
         logger.error(f'Failed to update pipeline status: lead={lead_id} error={e}')
+
+
+def _notify_referrer(lead, new_status: str) -> None:
+    """
+    Send referrer_update template to source.referrer_phone on every pipeline change.
+    Runs in background thread. Fails silently.
+    """
+    import threading
+
+    source = lead.source
+    if not source or not source.referrer_phone:
+        return
+
+    def _send():
+        try:
+            from templates.models import MessageTemplate
+            from whatsapp.services import YCloudService
+
+            # Read template config from DB (configured in Templates UI as referrer_update)
+            tmpl = MessageTemplate.objects.filter(
+                category='system', is_active=True, trigger_type='referrer_update',
+            ).values('ycloud_template_name', 'variable_mapping').first()
+            if not tmpl or not tmpl['ycloud_template_name']:
+                return
+
+            status_text = new_status.replace('_', ' ').title()
+            referrer_first = source.name.strip().split()[0] if source.name else ''
+            client_first = lead.name.strip().split()[0] if lead.name else ''
+
+            variables = {
+                'referrer_name': referrer_first,
+                'client_name': client_first,
+                'status': status_text,
+            }
+
+            # Build components from variable_mapping
+            mapping = tmpl['variable_mapping'] or {}
+            params = []
+            for i in range(1, len(mapping) + 1):
+                var_name = mapping.get(str(i), '')
+                params.append({'type': 'text', 'text': variables.get(var_name, '-')})
+            components = [{'type': 'body', 'parameters': params}] if params else []
+
+            YCloudService().send_template_message(
+                to_number=source.referrer_phone,
+                template_name=tmpl['ycloud_template_name'],
+                components=components,
+                use_direct=False,
+            )
+            logger.info(f'Referrer notification sent: {source.referrer_phone} status={status_text}')
+
+        except Exception as e:
+            logger.warning(f'Referrer notification failed: {e}')
+
+    threading.Thread(target=_send, daemon=True).start()
 
 
 # Map case stages to pipeline statuses (only stages that have system templates)
