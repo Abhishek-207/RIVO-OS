@@ -286,15 +286,6 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
                 </select>
               </div>
 
-              {/* Referrer Update Info */}
-              {triggerType === 'referrer_update' && (
-                <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 text-xs text-amber-700">
-                  This template is sent to the referrer (source linked user) whenever any system template fires for a client.
-                  <br />
-                  <span className="font-medium">Available variables:</span> {'{referrer_name}'}, {'{client_name}'}, {'{status}'}, {'{today}'}
-                </div>
-              )}
-
               {/* Trigger Value — only for case_stage and client_status */}
               {triggerType && triggerType !== 'referrer_update' && (
                 <div>
