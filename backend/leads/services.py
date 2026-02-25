@@ -103,37 +103,21 @@ def _notify_referrer(lead, new_status: str) -> None:
 
     def _send():
         try:
-            from templates.models import MessageTemplate
             from whatsapp.services import YCloudService
 
-            # Read template config from DB (configured in Templates UI as referrer_update)
-            tmpl = MessageTemplate.objects.filter(
-                category='system', is_active=True, trigger_type='referrer_update',
-            ).values('ycloud_template_name', 'variable_mapping').first()
-            if not tmpl or not tmpl['ycloud_template_name']:
-                return
-
             status_text = new_status.replace('_', ' ').title()
-            referrer_first = source.name.strip().split()[0] if source.name else ''
-            client_first = lead.name.strip().split()[0] if lead.name else ''
+            referrer_first = source.name.strip().split()[0] if source.name else '-'
+            client_first = lead.name.strip().split()[0] if lead.name else '-'
 
-            variables = {
-                'referrer_name': referrer_first,
-                'client_name': client_first,
-                'status': status_text,
-            }
-
-            # Build components from variable_mapping
-            mapping = tmpl['variable_mapping'] or {}
-            params = []
-            for i in range(1, len(mapping) + 1):
-                var_name = mapping.get(str(i), '')
-                params.append({'type': 'text', 'text': variables.get(var_name, '-')})
-            components = [{'type': 'body', 'parameters': params}] if params else []
+            components = [{'type': 'body', 'parameters': [
+                {'type': 'text', 'text': referrer_first},
+                {'type': 'text', 'text': client_first},
+                {'type': 'text', 'text': status_text},
+            ]}]
 
             YCloudService().send_template_message(
                 to_number=source.referrer_phone,
-                template_name=tmpl['ycloud_template_name'],
+                template_name='referrer_status_update_1',
                 components=components,
                 use_direct=False,
             )

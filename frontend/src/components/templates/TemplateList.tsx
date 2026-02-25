@@ -88,9 +88,7 @@ export function TemplateList() {
   }
 
   const getTriggerLabel = (template: MessageTemplate) => {
-    if (template.category !== 'system') return null
-    if (template.trigger_type === 'referrer_update') return 'Referrer Update'
-    if (!template.trigger_value) return null
+    if (template.category !== 'system' || !template.trigger_value) return null
     const prefix = template.trigger_type === 'case_stage' ? 'Stage' : 'Status'
     // Convert snake_case to Title Case
     const value = template.trigger_value

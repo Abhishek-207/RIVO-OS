@@ -62,7 +62,6 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
   // Get trigger value options based on selected trigger type
   const triggerValueOptions = useMemo(() => {
     if (!triggerOptions || !triggerType) return []
-    if (triggerType === 'referrer_update') return [] // No trigger value needed
     return triggerType === 'case_stage'
       ? triggerOptions.case_stage
       : triggerOptions.client_status
@@ -100,7 +99,7 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
         setSaveError('Trigger type is required for system templates')
         return
       }
-      if (triggerType !== 'referrer_update' && !triggerValue) {
+      if (!triggerValue) {
         setSaveError('Trigger value is required for system templates')
         return
       }
@@ -120,8 +119,8 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
         content: category === 'system' ? systemContent : content.trim(),
         is_active: isActive,
         ...(category === 'system' && {
-          trigger_type: triggerType as 'case_stage' | 'client_status' | 'referrer_update',
-          trigger_value: triggerType === 'referrer_update' ? 'all' : triggerValue,
+          trigger_type: triggerType as 'case_stage' | 'client_status',
+          trigger_value: triggerValue,
           ycloud_template_name: ycloudTemplateName,
           variable_mapping: variableMapping,
         }),
@@ -282,12 +281,11 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
                   <option value="">Select trigger type...</option>
                   <option value="case_stage">Case Stage Change</option>
                   <option value="client_status">Client Status Change</option>
-                  <option value="referrer_update">Referrer Update</option>
                 </select>
               </div>
 
-              {/* Trigger Value — only for case_stage and client_status */}
-              {triggerType && triggerType !== 'referrer_update' && (
+              {/* Trigger Value */}
+              {triggerType && (
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     When {triggerType === 'case_stage' ? 'Stage' : 'Status'} Changes To <span className="text-red-500">*</span>

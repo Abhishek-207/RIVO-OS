@@ -1,6 +1,6 @@
-# Generated manually
+# Generated manually — no-op (referrer_update removed, choices unchanged)
 
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -9,20 +9,4 @@ class Migration(migrations.Migration):
         ('templates', '0005_allow_blank_content'),
     ]
 
-    operations = [
-        migrations.AlterField(
-            model_name='messagetemplate',
-            name='trigger_type',
-            field=models.CharField(
-                blank=True,
-                choices=[
-                    ('case_stage', 'Case Stage Change'),
-                    ('client_status', 'Client Status Change'),
-                    ('referrer_update', 'Referrer Update'),
-                ],
-                help_text='Event type that triggers this template (system only)',
-                max_length=20,
-                null=True,
-            ),
-        ),
-    ]
+    operations = []
