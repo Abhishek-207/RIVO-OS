@@ -11,6 +11,7 @@ import {
 } from '@/hooks/useChannels'
 import { api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 
 interface ChannelSidePanelProps {
   channelId: string
@@ -170,16 +171,13 @@ export function ChannelSidePanel({ channelId, onClose }: ChannelSidePanelProps) 
           {/* Owner */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Channel Owner</label>
-            <select
+            <SearchableSelect
               value={owner}
-              onChange={(e) => setOwner(e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-            >
-              <option value="">Select...</option>
-              {channelOwners.map(u => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-            </select>
+              onChange={setOwner}
+              options={channelOwners.map(u => ({ value: u.id, label: u.name }))}
+              placeholder="Select..."
+              searchPlaceholder="Search owner..."
+            />
           </div>
 
           {/* Type */}

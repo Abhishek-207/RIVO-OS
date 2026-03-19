@@ -23,7 +23,7 @@ const roleOptions: { value: UserRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'channel_owner', label: 'Channel Owner' },
   { value: 'mortgage_specialist', label: 'Mortgage Specialist' },
-  { value: 'process_officer', label: 'Process Executive' },
+  { value: 'process_owner', label: 'Process Owner' },
 ]
 
 export function UserSidePanel({ userId, onClose }: UserSidePanelProps) {

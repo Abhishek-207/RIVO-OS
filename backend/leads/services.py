@@ -186,14 +186,38 @@ class LeadTrackingService:
     def find_lead_by_phone(phone: str) -> Lead | None:
         """
         Find existing lead by phone number.
-        Matches on last 10 digits to handle country code variations.
+
+        Strategy:
+        1. Try exact match on the full normalized phone (with country code).
+        2. Fall back to last-9 digits match for legacy data that may have
+           been stored without consistent formatting.
         """
-        normalized = LeadTrackingService.normalize_phone(phone)
-        if len(normalized) < 10:
+        from common.phone import normalize_phone as normalize_full
+        normalized = normalize_full(phone)  # e.g. "+971501234567"
+
+        # Exact match (preferred — includes country code)
+        lead = Lead.objects.filter(phone=normalized).first()
+        if lead:
+            return lead
+
+        # Fallback: match on local digits (last 9 to handle UAE-style numbers)
+        digits_only = LeadTrackingService.normalize_phone(phone)
+        if len(digits_only) < 7:
             return None
 
-        last_10 = normalized[-10:]
-        return Lead.objects.filter(phone__endswith=last_10).first()
+        # Try the local portion (digits after country code)
+        local = normalized.lstrip('+')
+        for code_digits in ['971', '91', '44', '1', '92', '63', '20',
+                            '966', '965', '974', '973', '968', '962',
+                            '961', '86', '49', '33', '61', '27']:
+            if local.startswith(code_digits):
+                local = local[len(code_digits):]
+                break
+
+        if len(local) >= 7:
+            return Lead.objects.filter(phone__endswith=local).first()
+
+        return None
 
     @staticmethod
     def find_lead_by_ycloud_contact(ycloud_contact_id: str) -> Lead | None:

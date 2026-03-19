@@ -84,6 +84,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     // Auto-logout on 401 to prevent stale token loops
     if (response.status === 401) {
       localStorage.removeItem('rivo-auth')
+      localStorage.setItem('rivo-session-expired', '1')
       window.location.href = '/login'
     }
     throw new ApiError(response.status, response.statusText, data)
@@ -127,6 +128,12 @@ async function uploadFile<T>(endpoint: string, file: File, additionalData?: Reco
       data = await response.json()
     } catch {
       data = null
+    }
+    // Auto-logout on 401 for file uploads too
+    if (response.status === 401) {
+      localStorage.removeItem('rivo-auth')
+      localStorage.setItem('rivo-session-expired', '1')
+      window.location.href = '/login'
     }
     throw new ApiError(response.status, response.statusText, data)
   }

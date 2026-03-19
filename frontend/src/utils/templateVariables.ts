@@ -5,6 +5,7 @@
  */
 
 import type { ClientData } from '@/types/mortgage'
+import { formatDate } from '@/lib/dateUtils'
 
 /**
  * Format a number as currency (AED).
@@ -18,17 +19,6 @@ function formatCurrency(value: number | string | null | undefined): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(num)
-}
-
-/**
- * Format a date for display.
- */
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
 }
 
 /**

@@ -92,6 +92,22 @@ export interface ActivityTimelineGroup {
 
 // Audit Log Types (Admin view)
 
+export interface ChangeDisplayUpdate {
+  old: unknown
+  new: unknown
+  old_display: string
+  new_display: string
+  field_display: string
+}
+
+export interface ChangeDisplaySingle {
+  value: unknown
+  display: string
+  field_display: string
+}
+
+export type ChangeDisplay = ChangeDisplayUpdate | ChangeDisplaySingle
+
 export interface AuditLogEntry {
   id: string
   table_name: string
@@ -101,6 +117,7 @@ export interface AuditLogEntry {
   user_name: string
   timestamp: string
   changes: Record<string, unknown>
+  changes_display: Record<string, ChangeDisplay>
   metadata: Record<string, unknown>
 }
 

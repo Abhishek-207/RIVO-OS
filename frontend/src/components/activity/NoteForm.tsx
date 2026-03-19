@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { Loader2, Calendar, Clock, X } from 'lucide-react'
 import { useCreateNote, useUpdateNote } from '@/hooks/useAudit'
+import { getTodayISO } from '@/lib/dateUtils'
 import type { NotableType, NoteData } from '@/types/audit'
 
 interface NoteFormProps {
@@ -139,7 +140,7 @@ export function NoteForm({ recordType, recordId, note, onSuccess, onCancel }: No
                     type="date"
                     value={reminderDate}
                     onChange={(e) => setReminderDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={getTodayISO()}
                     className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
                     disabled={isPending}
                   />

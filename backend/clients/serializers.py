@@ -24,6 +24,7 @@ from clients.models import (
     MaritalStatus,
 )
 from acquisition_channels.models import Source
+from common.phone import validate_phone, normalize_phone
 
 
 class SourceNestedSerializer(serializers.ModelSerializer):
@@ -375,6 +376,13 @@ class ClientCreateSerializer(serializers.ModelSerializer):
             'source_id', 'lead_id',
         ]
 
+    def validate_phone(self, value):
+        """Validate phone number format per country code."""
+        error = validate_phone(value)
+        if error:
+            raise serializers.ValidationError(error)
+        return normalize_phone(value)
+
     def validate(self, attrs):
         """Validate source belongs to trusted channel or lead is provided."""
         source_id = attrs.get('source_id')
@@ -457,9 +465,14 @@ class ClientUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_phone(self, value):
-        """Prevent phone changes once WhatsApp messaging has started."""
+        """Validate format and prevent phone changes once WhatsApp messaging has started."""
+        error = validate_phone(value)
+        if error:
+            raise serializers.ValidationError(error)
+        value = normalize_phone(value)
+
         client = self.instance
-        if client and value and value != client.phone:
+        if client and value != client.phone:
             from whatsapp.models import WhatsAppMessage
             if WhatsAppMessage.objects.filter(client=client).exists():
                 raise serializers.ValidationError(

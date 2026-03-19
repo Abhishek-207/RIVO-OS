@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('channel', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='teams', to='acquisition_channels.channel')),
                 ('mortgage_specialist', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='ms_teams', to='users.user')),
-                ('process_officer', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='po_teams', to='users.user')),
+                ('process_owner', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='po_teams', to='users.user')),
                 ('team_leader', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='led_teams', to='users.user')),
             ],
             options={

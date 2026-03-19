@@ -73,18 +73,18 @@ const mortgageSpecialistToolbox: NavItem[] = [
   { id: 'templates-toolbox', label: 'Templates', href: '/templates', icon: FileText, roles: ['mortgage_specialist'], section: 'toolbox' },
 ]
 
-// ── Process Executive navigation ────────────────────────────
+// ── Process Owner navigation ────────────────────────────────
 const processOfficerWorkspace: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['process_officer'], section: 'workspace' },
-  { id: 'leads', label: 'Leads', href: '/leads', icon: Users, roles: ['process_officer'], section: 'workspace' },
-  { id: 'clients', label: 'Clients', href: '/clients', icon: UserCheck, roles: ['process_officer'], section: 'workspace' },
-  { id: 'cases', label: 'Cases', href: '/cases', icon: Briefcase, roles: ['process_officer'], section: 'workspace' },
+  { id: 'dashboard', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, roles: ['process_owner'], section: 'workspace' },
+  { id: 'leads', label: 'Leads', href: '/leads', icon: Users, roles: ['process_owner'], section: 'workspace' },
+  { id: 'clients', label: 'Clients', href: '/clients', icon: UserCheck, roles: ['process_owner'], section: 'workspace' },
+  { id: 'cases', label: 'Cases', href: '/cases', icon: Briefcase, roles: ['process_owner'], section: 'workspace' },
 ]
 
 const processOfficerToolbox: NavItem[] = [
-  { id: 'whatsapp', label: 'WhatsApp', href: '/whatsapp', icon: MessageCircle, roles: ['process_officer'], section: 'toolbox' },
-  { id: 'bank-products', label: 'Bank Products', href: '/bank-products', icon: Building2, roles: ['process_officer'], section: 'toolbox' },
-  { id: 'templates-toolbox', label: 'Templates', href: '/templates', icon: FileText, roles: ['process_officer'], section: 'toolbox' },
+  { id: 'whatsapp', label: 'WhatsApp', href: '/whatsapp', icon: MessageCircle, roles: ['process_owner'], section: 'toolbox' },
+  { id: 'bank-products', label: 'Bank Products', href: '/bank-products', icon: Building2, roles: ['process_owner'], section: 'toolbox' },
+  { id: 'templates-toolbox', label: 'Templates', href: '/templates', icon: FileText, roles: ['process_owner'], section: 'toolbox' },
 ]
 
 export function getNavigationSections(role: UserRole): NavSection[] {
@@ -133,7 +133,7 @@ export function getNavigationSections(role: UserRole): NavSection[] {
       })
       break
 
-    case 'process_officer':
+    case 'process_owner':
       sections.push({
         id: 'workspace',
         label: 'WORKSPACE',

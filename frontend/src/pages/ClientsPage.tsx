@@ -28,6 +28,7 @@ import {
   SearchInput,
 } from '@/components/ui/TablePageLayout'
 import { formatDate, formatTimeAgo, formatDbr, getDbrColorClass } from '@/lib/formatters'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 10
@@ -201,16 +202,19 @@ export function ClientsPage() {
             value={statusFilter}
             onChange={(value) => setFilters({ status: value, page: '1' })}
           />
-          <select
-            value={sourceFilter}
-            onChange={(e) => setFilters({ source: e.target.value, page: '1' })}
-            className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white min-w-[140px]"
-          >
-            <option value="">All Sources</option>
-            {sources?.map((source) => (
-              <option key={source.id} value={source.id}>{source.name} ({source.channelName})</option>
-            ))}
-          </select>
+          <div className="min-w-[160px]">
+            <SearchableSelect
+              value={sourceFilter}
+              onChange={(value) => setFilters({ source: value, page: '1' })}
+              options={[
+                { value: '', label: 'All Sources' },
+                ...(sources?.map(s => ({ value: s.id, label: `${s.name} (${s.channelName})` })) || []),
+              ]}
+              placeholder="All Sources"
+              searchPlaceholder="Search source..."
+              size="sm"
+            />
+          </div>
         </div>
       </div>
 

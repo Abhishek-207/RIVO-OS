@@ -11,8 +11,9 @@ This module provides:
 import csv
 import json
 import logging
+import re
 from io import StringIO
-from datetime import timedelta
+from datetime import datetime, timedelta
 from collections import defaultdict
 
 from django.db.models import Q
@@ -96,6 +97,32 @@ FIELD_DISPLAY_NAMES = {
     'tenure_months': 'tenure months',
     'assigned_to': 'assigned to',
     'assigned_to_id': 'assigned to',
+    'converted_from_lead': 'converted from lead',
+    'converted_from_lead_id': 'converted from lead',
+    'converted_client': 'converted client',
+    'converted_client_id': 'converted client',
+    'document_type': 'document type',
+    'document_type_id': 'document type',
+    'note': 'note',
+    'note_id': 'note',
+    'reminder_date': 'reminder date',
+    'reminder_time': 'reminder time',
+    'completed_at': 'completed at',
+    'stage_changed_at': 'stage changed at',
+    'uploaded_at': 'uploaded at',
+    'file_name': 'file name',
+    'file_size': 'file size',
+    'file_format': 'file format',
+    'file_url': 'file URL',
+    'uploaded_via': 'uploaded via',
+    'applicant_role': 'applicant role',
+    'current_tags': 'current tags',
+    'campaign_status': 'campaign status',
+    'response_count': 'response count',
+    'last_response_at': 'last response at',
+    'first_response_at': 'first response at',
+    'first_contact_completed_at': 'first contact completed at',
+    'ycloud_contact_id': 'YCloud contact ID',
 }
 
 # Status/stage value display mappings
@@ -107,16 +134,51 @@ VALUE_DISPLAY_NAMES = {
     'converted': 'Converted',
     # Case stages
     'processing': 'Processing',
-    'document_collection': 'Document Collection',
-    'bank_submission': 'Bank Submission',
-    'bank_processing': 'Bank Processing',
-    'offer_issued': 'Offer Issued',
-    'offer_accepted': 'Offer Accepted',
-    'property_valuation': 'Property Valuation',
-    'final_approval': 'Final Approval',
-    'property_transfer': 'Property Transfer',
-    'property_transferred': 'Property Transferred',
+    'submitted_to_bank': 'Submitted to Bank',
+    'under_review': 'Under Review',
+    'submitted_to_credit': 'Submitted to Credit',
+    'preapproved': 'Preapproved',
+    'valuation_initiated': 'Valuation Initiated',
+    'valuation_report_received': 'Valuation Report Received',
+    'fol_requested': 'FOL Requested',
+    'fol_received': 'FOL Received',
+    'fol_signed': 'FOL Signed',
+    'disbursed': 'Disbursed',
+    'final_documents': 'Final Documents',
+    'mc_received': 'MC Received',
+    'sales_queries': 'Sales Queries',
+    'credit_queries': 'Credit Queries',
+    'disbursal_queries': 'Disbursal Queries',
     'on_hold': 'On Hold',
+    'property_transferred': 'Property Transferred',
+    'rejected': 'Rejected',
+    # Pipeline statuses
+    'submitted': 'Submitted',
+    'contacted': 'Contacted',
+    'qualified': 'Qualified',
+    'documents_collected': 'Documents Collected',
+    'approved': 'Approved',
+    # Campaign statuses
+    'subscriber_pending': 'Subscriber Pending',
+    'segment_mortgaged': 'Mortgaged',
+    'segment_renting': 'Renting',
+    'segment_other': 'Other Segment',
+    # Reminder statuses
+    'pending': 'Pending',
+    'completed': 'Completed',
+    'dismissed': 'Dismissed',
+    # Document statuses
+    'uploaded': 'Uploaded',
+    # Mortgage/Rate types
+    'conventional': 'Conventional',
+    'islamic': 'Islamic',
+    'fixed': 'Fixed',
+    'variable': 'Variable',
+    # Case types
+    'assisted': 'Assisted',
+    # Applicant role
+    'primary': 'Primary',
+    'co_applicant': 'Co-Applicant',
     # Residency
     'uae_national': 'UAE National',
     'uae_resident': 'UAE Resident',
@@ -176,10 +238,122 @@ ACTIVITY_VISIBLE_FIELDS = {
 }
 
 
+# UUID regex for identifying FK values stored as UUIDs
+_UUID_RE = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    re.IGNORECASE
+)
+
+# FK field names mapped to (app_label.ModelName, display_field)
+FK_FIELD_RESOLVERS = {
+    'assigned_to': ('users', 'User', 'name'),
+    'assigned_to_id': ('users', 'User', 'name'),
+    'source': ('acquisition_channels', 'Source', 'name'),
+    'source_id': ('acquisition_channels', 'Source', 'name'),
+    'client': ('clients', 'Client', 'name'),
+    'client_id': ('clients', 'Client', 'name'),
+    'converted_from_lead': ('leads', 'Lead', 'name'),
+    'converted_from_lead_id': ('leads', 'Lead', 'name'),
+    'converted_client': ('clients', 'Client', 'name'),
+    'converted_client_id': ('clients', 'Client', 'name'),
+    'lead': ('leads', 'Lead', 'name'),
+    'lead_id': ('leads', 'Lead', 'name'),
+    'case': ('cases', 'Case', 'client__name'),
+    'case_id': ('cases', 'Case', 'client__name'),
+    'author': ('users', 'User', 'name'),
+    'author_id': ('users', 'User', 'name'),
+    'document_type': ('documents', 'DocumentType', 'name'),
+    'document_type_id': ('documents', 'DocumentType', 'name'),
+    'note': ('audit', 'Note', 'text'),
+    'note_id': ('audit', 'Note', 'text'),
+}
+
+# Date-only fields (YYYY-MM-DD format)
+DATE_FIELDS = {'reminder_date', 'date_of_birth'}
+
+# Time-only fields (HH:MM:SS format)
+TIME_FIELDS = {'reminder_time'}
+
+
+def _is_uuid(value):
+    """Check if a value looks like a UUID string."""
+    return isinstance(value, str) and bool(_UUID_RE.match(value))
+
+
+def build_fk_display_map(audit_entries):
+    """
+    Scan all changes in a list of audit entries, collect UUID values
+    from known FK fields, batch-fetch their display names, and return
+    a dict mapping UUID -> display name.
+    """
+    # Collect UUIDs grouped by model
+    # model_key = (app_label, model_name, display_field) -> set of UUIDs
+    model_uuids = defaultdict(set)
+
+    for entry in audit_entries:
+        changes = entry.changes or {}
+        for field_name, change_data in changes.items():
+            resolver = FK_FIELD_RESOLVERS.get(field_name)
+            if not resolver:
+                continue
+
+            # Collect UUIDs from both old and new values
+            if isinstance(change_data, dict):
+                for val in [change_data.get('old'), change_data.get('new')]:
+                    if _is_uuid(val):
+                        model_uuids[resolver].add(val)
+            elif _is_uuid(change_data):
+                model_uuids[resolver].add(change_data)
+
+    # Batch-fetch display names per model
+    uuid_to_name = {}
+    from django.apps import apps
+
+    for (app_label, model_name, display_field), uuids in model_uuids.items():
+        if not uuids:
+            continue
+        try:
+            model_class = apps.get_model(app_label, model_name)
+        except LookupError:
+            # Mark all as deleted if model not found
+            for uid in uuids:
+                uuid_to_name[uid] = f'Deleted {model_name}'
+            continue
+
+        # For cross-relation display fields like 'client__name', use values_list
+        resolved = set()
+        qs = model_class.objects.filter(pk__in=uuids).values_list('pk', display_field)
+        for pk, name in qs:
+            pk_str = str(pk)
+            display = str(name) if name else 'Unknown'
+            # Truncate long text (e.g. note text)
+            if len(display) > 60:
+                display = display[:57] + '...'
+            uuid_to_name[pk_str] = display
+            resolved.add(pk_str)
+
+        # Mark unresolved UUIDs (deleted records) with a fallback label
+        for uid in uuids:
+            if uid not in resolved:
+                uuid_to_name[uid] = f'Deleted {model_name}'
+
+    return uuid_to_name
+
+
 def format_value(field_name, value):
     """Format a value for human-readable display."""
     if value is None or value == '':
         return 'empty'
+
+    # Format lists: run each item through format_value for display name lookup
+    if isinstance(value, list):
+        if not value:
+            return 'empty'
+        return ', '.join(format_value(field_name, v) for v in value)
+
+    # Dicts are not hashable, skip display name lookup
+    if isinstance(value, dict):
+        return str(value)
 
     # Check if it's a known value with display name
     if value in VALUE_DISPLAY_NAMES:
@@ -197,17 +371,51 @@ def format_value(field_name, value):
     if isinstance(value, bool):
         return 'Yes' if value else 'No'
 
+    if isinstance(value, str):
+        # Format ISO datetime strings (e.g. 2026-02-26T18:32:06.408833+00:00)
+        if len(value) >= 19 and 'T' in value:
+            try:
+                dt = datetime.fromisoformat(value)
+                return dt.strftime('%b %d, %Y, %I:%M %p').replace(' 0', ' ')
+            except (ValueError, TypeError):
+                pass
+
+        # Format date-only fields (e.g. 2026-01-28)
+        if field_name in DATE_FIELDS:
+            try:
+                from datetime import date as date_type
+                d = date_type.fromisoformat(value)
+                return d.strftime('%b %d, %Y')
+            except (ValueError, TypeError):
+                pass
+
+        # Format time-only fields (e.g. 04:16:00)
+        if field_name in TIME_FIELDS:
+            try:
+                from datetime import time as time_type
+                t = time_type.fromisoformat(value)
+                return t.strftime('%I:%M %p').lstrip('0')
+            except (ValueError, TypeError):
+                pass
+
+    # Auto-format snake_case strings as Title Case (catches unmapped enums)
+    if isinstance(value, str) and '_' in value and value == value.lower():
+        return value.replace('_', ' ').title()
+
     return str(value)
 
 
-def format_changes_for_display(changes):
+def format_changes_for_display(changes, fk_display_map=None):
     """
     Format changes dict for structured frontend display.
     Returns list of {field, field_display, old_value, new_value, old_display, new_display}
+
+    If fk_display_map is provided, FK UUID values are resolved to human-readable names.
     """
     if not changes:
         return []
 
+    fk_map = fk_display_map or {}
     skip_fields = {'updated_at', 'created_at', 'id', 'uuid'}
     result = []
 
@@ -223,13 +431,21 @@ def format_changes_for_display(changes):
             if old_val == new_val:
                 continue
 
+            is_fk = field_name in FK_FIELD_RESOLVERS
+            if is_fk:
+                old_display = fk_map.get(old_val, old_val) if _is_uuid(old_val) else format_value(field_name, old_val)
+                new_display = fk_map.get(new_val, new_val) if _is_uuid(new_val) else format_value(field_name, new_val)
+            else:
+                old_display = format_value(field_name, old_val)
+                new_display = format_value(field_name, new_val)
+
             result.append({
                 'field': field_name,
                 'field_display': FIELD_DISPLAY_NAMES.get(field_name, field_name.replace('_', ' ')),
                 'old_value': old_val,
                 'new_value': new_val,
-                'old_display': format_value(field_name, old_val),
-                'new_display': format_value(field_name, new_val),
+                'old_display': old_display,
+                'new_display': new_display,
             })
 
     return result
@@ -469,6 +685,9 @@ class ActivityTimelineView(APIView):
                 for n in Note.objects.select_related('reminder').filter(pk__in=note_record_ids)
             }
 
+        # Batch-resolve FK UUIDs in changes to human-readable names
+        fk_display_map = build_fk_display_map(audit_entries)
+
         # Group entries by date
         grouped = defaultdict(list)
         for entry in audit_entries:
@@ -491,7 +710,7 @@ class ActivityTimelineView(APIView):
                 'entry_type': entry.action,
                 'record_type': entry.table_name,
                 'record_id': entry.record_id,
-                'changes': format_changes_for_display(entry.changes) if entry.action == 'UPDATE' else None,
+                'changes': format_changes_for_display(entry.changes, fk_display_map) if entry.action == 'UPDATE' else None,
             }
             grouped[date].append(formatted_entry)
 
@@ -516,15 +735,16 @@ class AdminAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = AuditLogPagination
 
     def get_serializer_context(self):
-        """Add user_map to serializer context to avoid N+1 on user lookups."""
+        """Add user_map and fk_display_map to serializer context."""
         context = super().get_serializer_context()
-        # Build user map from paginated page (called after pagination)
         if hasattr(self, '_user_map'):
             context['user_map'] = self._user_map
+        if hasattr(self, '_fk_display_map'):
+            context['fk_display_map'] = self._fk_display_map
         return context
 
     def list(self, request, *args, **kwargs):
-        """Override list to batch-fetch user names."""
+        """Override list to batch-fetch user names and FK display values."""
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         items = page if page is not None else queryset
@@ -538,6 +758,9 @@ class AdminAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
             )
         else:
             self._user_map = {}
+
+        # Batch-resolve FK UUIDs in changes to human-readable names
+        self._fk_display_map = build_fk_display_map(items)
 
         serializer = self.get_serializer(items, many=True)
         if page is not None:

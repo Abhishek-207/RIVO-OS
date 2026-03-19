@@ -172,8 +172,9 @@ class ActivityTimelineGroupSerializer(serializers.Serializer):
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
-    """Serializer for admin audit log view (raw data)."""
+    """Serializer for admin audit log view with resolved display values."""
     user_name = serializers.SerializerMethodField()
+    changes_display = serializers.SerializerMethodField()
 
     class Meta:
         model = AuditLog
@@ -186,6 +187,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
             'user_name',
             'timestamp',
             'changes',
+            'changes_display',
             'metadata',
         ]
 
@@ -195,6 +197,65 @@ class AuditLogSerializer(serializers.ModelSerializer):
             return 'System'
         user_map = self.context.get('user_map', {})
         return user_map.get(obj.user_id, 'Unknown User')
+
+    def get_changes_display(self, obj):
+        """Build human-readable changes with FK UUIDs resolved to names."""
+        from audit.views import (
+            format_value, FK_FIELD_RESOLVERS, VALUE_DISPLAY_NAMES,
+            FIELD_DISPLAY_NAMES, _is_uuid,
+        )
+
+        changes = obj.changes or {}
+        if not changes:
+            return {}
+
+        fk_map = self.context.get('fk_display_map', {})
+        skip_fields = {'updated_at', 'created_at', 'id', 'uuid'}
+        result = {}
+
+        for field_name, change_data in changes.items():
+            if field_name in skip_fields:
+                continue
+
+            is_fk = field_name in FK_FIELD_RESOLVERS
+
+            if isinstance(change_data, dict) and 'old' in change_data and 'new' in change_data:
+                old_raw = change_data.get('old')
+                new_raw = change_data.get('new')
+
+                # Resolve FK UUIDs to names
+                if is_fk:
+                    old_display = fk_map.get(old_raw, old_raw) if _is_uuid(old_raw) else format_value(field_name, old_raw)
+                    new_display = fk_map.get(new_raw, new_raw) if _is_uuid(new_raw) else format_value(field_name, new_raw)
+                else:
+                    old_display = format_value(field_name, old_raw)
+                    new_display = format_value(field_name, new_raw)
+
+                result[field_name] = {
+                    'old': old_raw,
+                    'new': new_raw,
+                    'old_display': old_display,
+                    'new_display': new_display,
+                    'field_display': FIELD_DISPLAY_NAMES.get(field_name, field_name.replace('_', ' ')),
+                }
+            else:
+                # CREATE/DELETE: single value — skip null/empty fields
+                raw_val = change_data
+                if raw_val is None or raw_val == '' or raw_val == []:
+                    continue
+
+                if is_fk and _is_uuid(raw_val):
+                    display_val = fk_map.get(raw_val, raw_val)
+                else:
+                    display_val = format_value(field_name, raw_val)
+
+                result[field_name] = {
+                    'value': raw_val,
+                    'display': display_val,
+                    'field_display': FIELD_DISPLAY_NAMES.get(field_name, field_name.replace('_', ' ')),
+                }
+
+        return result
 
 
 class AuditLogExportSerializer(serializers.Serializer):

@@ -7,6 +7,7 @@ import { Check, X, Loader2 } from 'lucide-react'
 import { useCompleteReminder, useDismissReminder } from '@/hooks/useAudit'
 import type { DashboardReminder, NotableType } from '@/types/audit'
 import { cn } from '@/lib/utils'
+import { formatRelativeDate, formatTime } from '@/lib/dateUtils'
 
 interface ReminderCardProps {
   reminder: DashboardReminder
@@ -51,22 +52,9 @@ export function ReminderCard({ reminder, onUpdate, onNavigate }: ReminderCardPro
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const today = new Date()
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today'
-    }
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }
-
-  const formatTime = (timeStr: string | null) => {
+  const formatReminderTime = (timeStr: string | null) => {
     if (!timeStr) return ''
-    const [hours, minutes] = timeStr.split(':')
-    const hour = parseInt(hours, 10)
-    const ampm = hour >= 12 ? 'PM' : 'AM'
-    const hour12 = hour % 12 || 12
-    return ` at ${hour12}:${minutes} ${ampm}`
+    return ` at ${formatTime(timeStr)}`
   }
 
   const isPending = isCompleting || isDismissing
@@ -94,7 +82,7 @@ export function ReminderCard({ reminder, onUpdate, onNavigate }: ReminderCardPro
             'text-xs mt-1',
             reminder.is_overdue ? 'text-red-600' : 'text-gray-400'
           )}>
-            {formatDate(reminder.reminder_date)}{formatTime(reminder.reminder_time)}
+            {formatRelativeDate(reminder.reminder_date)}{formatReminderTime(reminder.reminder_time)}
             {reminder.is_overdue && ' • Overdue'}
             {' • '}{reminder.author_name}
           </p>

@@ -601,22 +601,33 @@ def handle_message_status_update(payload):
 def normalize_phone_for_lookup(phone: str) -> str:
     """
     Normalize phone number for database lookup.
-    Removes +, spaces, dashes, etc.
+    Uses the centralized phone normalizer for consistent formatting.
     """
-    return ''.join(c for c in phone if c.isdigit())
+    from common.phone import normalize_phone
+    return normalize_phone(phone)
 
 
-def find_client_by_phone(normalized_phone: str):
+def find_client_by_phone(phone: str):
     """
     Find a client by phone number.
-    Matches on last 10 digits (local number without country code).
+    Tries exact match on the full normalized number first,
+    then falls back to local-digits matching for legacy data.
     """
-    last_10 = normalized_phone[-10:]
+    from common.phone import normalize_phone
+    normalized = normalize_phone(phone)
 
-    # Try icontains on last 10 digits (covers most formats)
-    client = Client.objects.filter(phone__icontains=last_10).first()
+    # Exact match (preferred — includes country code)
+    client = Client.objects.filter(phone=normalized).first()
     if client:
         return client
+
+    # Fallback: match on local digits
+    digits_only = ''.join(c for c in phone if c.isdigit())
+    if len(digits_only) >= 9:
+        last_9 = digits_only[-9:]
+        client = Client.objects.filter(phone__endswith=last_9).first()
+        if client:
+            return client
 
     return None
 

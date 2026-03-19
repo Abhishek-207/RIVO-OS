@@ -24,7 +24,7 @@ const roleColors: Record<string, string> = {
   channel_owner: 'bg-[#e8f0f5] text-[#1e3a5f]',
   team_leader: 'bg-[#e8eef5] text-[#2a4a6b]',
   mortgage_specialist: 'bg-[#e8f5f0] text-[#2d6a4f]',
-  process_officer: 'bg-[#f0e8f5] text-[#6b4c8a]',
+  process_owner: 'bg-[#f0e8f5] text-[#6b4c8a]',
 }
 
 const roleLabels: Record<string, string> = {
@@ -32,7 +32,7 @@ const roleLabels: Record<string, string> = {
   channel_owner: 'Channel Owner',
   team_leader: 'Team Leader',
   mortgage_specialist: 'Mortgage Specialist',
-  process_officer: 'Process Executive',
+  process_owner: 'Process Owner',
 }
 
 const avatarColors = [
@@ -167,7 +167,7 @@ export function UsersPage() {
             <option value="admin">Admin</option>
             <option value="channel_owner">Channel Owner</option>
             <option value="mortgage_specialist">Mortgage Specialist</option>
-            <option value="process_officer">Process Executive</option>
+            <option value="process_owner">Process Owner</option>
           </select>
         </div>
       </div>

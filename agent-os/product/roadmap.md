@@ -41,4 +41,4 @@ Four phases take Rivo OS from operational foundation to intelligent automation.
 - Admin
 - Manager (Basic)
 - Mortgage Specialist (MS)
-- Process Executive (PE)yes 
+- Process Owner (PO)
