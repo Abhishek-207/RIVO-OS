@@ -20,13 +20,13 @@ class UserRole(models.TextChoices):
     CHANNEL_OWNER: Owns channels, creates teams, assigns members.
     TEAM_LEADER: Leads a team. Full operational access to leads/clients/cases.
     MS: Mortgage Specialist. Works leads to clients to cases.
-    PO: Process Executive. Works clients and cases to disbursement.
+    PO: Process Owner. Works clients and cases to disbursement.
     """
     ADMIN = 'admin', 'Admin'
     CHANNEL_OWNER = 'channel_owner', 'Channel Owner'
     TEAM_LEADER = 'team_leader', 'Team Leader'
     MS = 'mortgage_specialist', 'Mortgage Specialist'
-    PO = 'process_officer', 'Process Executive'
+    PO = 'process_owner', 'Process Owner'
 
 
 class User(models.Model):

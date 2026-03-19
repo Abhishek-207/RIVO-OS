@@ -20,12 +20,12 @@ From the raw idea document:
 - Admin
 - Manager
 - Mortgage Specialist (MS)
-- Process Executive (PE)
+- Process Owner (PO)
 
 The following roles are deferred to v2.0: Channel Owner, Marketing Owner, Relationship Manager.
 
 **Q2:** What should "Process Owner" be called?
-**Answer:** Standardize on "Process Executive (PE)" naming throughout the system.
+**Answer:** Standardize on "Process Owner (PO)" naming throughout the system.
 
 **Q3:** How should authentication work?
 **Answer:**
@@ -120,7 +120,7 @@ N/A - No mockups or wireframes available.
   - Admin: `bg-[#e8f0f5] text-[#1e3a5f]`
   - Manager: `bg-[#e8f0f5] text-[#1e3a5f]`
   - Mortgage Specialist: `bg-[#e8f5f0] text-[#2d6a4f]`
-  - Process Executive: `bg-[#f0e8f5] text-[#6b4c8a]`
+  - Process Owner: `bg-[#f0e8f5] text-[#6b4c8a]`
 - Tabs styled with border-b-2 indicator on active tab
 - Search bar and status tabs on same row
 
@@ -131,7 +131,7 @@ N/A - No mockups or wireframes available.
 | Admin | System configuration. Manages users, channels, bank products, templates. No operational access. |
 | Manager | Operations oversight. Read-only on operational data. |
 | Mortgage Specialist (MS) | Full access on leads and clients. Can create cases (convert client to case). |
-| Process Executive (PE) | Full access on clients and cases. View-only on leads. |
+| Process Owner (PO) | Full access on clients and cases. View-only on leads. |
 
 **IAM Permission Matrix:**
 

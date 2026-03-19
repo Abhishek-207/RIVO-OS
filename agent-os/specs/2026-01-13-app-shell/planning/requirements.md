@@ -28,7 +28,7 @@ App Shell feature for Rivo OS - a Lead Operating System for mortgage businesses.
 - Admin: Settings only (Users & Roles, Channels, Bank Products, Templates, SLA Config)
 - Manager: Dashboard, Clients, Cases + Analytics
 - Mortgage Specialist: Dashboard, Clients, Cases + Toolbox
-- Process Executive: Dashboard, Cases + Toolbox
+- Process Owner: Dashboard, Cases + Toolbox
 
 **Q4:** What responsive breakpoints should be supported?
 **Answer:** Three breakpoints defined:
@@ -134,7 +134,7 @@ No follow-up questions needed - comprehensive requirements provided.
 | Admin | - | - | - | - | - | Full Access |
 | Manager | Yes | Yes | Yes | - | Yes | - |
 | Mortgage Specialist | Yes | Yes | Yes | Yes | - | - |
-| Process Executive | Yes | - | Yes | Yes | - | - |
+| Process Owner | Yes | - | Yes | Yes | - | - |
 
 **Settings Sub-Items (Admin only):**
 - Users & Roles

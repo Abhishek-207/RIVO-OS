@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, AlertCircle, Loader2, Briefcase } from 'lucide-react'
+import { getTodayISO } from '@/lib/dateUtils'
 import {
   useClient,
   useCreateClient,
@@ -35,6 +36,8 @@ import type {
   TransactionType,
 } from '@/types/mortgage'
 import { cn } from '@/lib/utils'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import type { SearchableSelectOption } from '@/components/ui/SearchableSelect'
 
 interface ClientSidePanelProps {
   clientId: string
@@ -95,27 +98,15 @@ const UAE_BANKS = [
   'Mashreq', 'RAKBANK', 'Standard Chartered', 'HSBC', 'Citibank', 'Other',
 ]
 
-const COUNTRY_CODES = [
-  { code: '+971', label: 'UAE (+971)' },
-  { code: '+91', label: 'India (+91)' },
-  { code: '+44', label: 'UK (+44)' },
-  { code: '+1', label: 'USA (+1)' },
-  { code: '+92', label: 'Pakistan (+92)' },
-  { code: '+63', label: 'Philippines (+63)' },
-  { code: '+20', label: 'Egypt (+20)' },
-  { code: '+966', label: 'Saudi (+966)' },
-  { code: '+965', label: 'Kuwait (+965)' },
-  { code: '+974', label: 'Qatar (+974)' },
-  { code: '+973', label: 'Bahrain (+973)' },
-  { code: '+968', label: 'Oman (+968)' },
-  { code: '+962', label: 'Jordan (+962)' },
-  { code: '+961', label: 'Lebanon (+961)' },
-  { code: '+86', label: 'China (+86)' },
-  { code: '+49', label: 'Germany (+49)' },
-  { code: '+33', label: 'France (+33)' },
-  { code: '+61', label: 'Australia (+61)' },
-  { code: '+27', label: 'South Africa (+27)' },
-]
+// Phone country codes and validation imported from shared utility
+import {
+  COUNTRY_CODES,
+  findCountryCode,
+  validatePhoneDigits,
+  assemblePhone,
+  parsePhone,
+  getExpectedDigits,
+} from '@/lib/phoneUtils'
 
 const NATIONALITY_OPTIONS = [
   'Afghan', 'Albanian', 'Algerian', 'American', 'Andorran', 'Angolan', 'Argentine', 'Armenian',
@@ -224,14 +215,9 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
       setLastName(nameParts.slice(1).join(' ') || '')
       setEmail(client.email || '')
       // Parse phone to extract country code
-      const phoneValue = client.phone || ''
-      const matchingCode = COUNTRY_CODES.find(c => phoneValue.startsWith(c.code))
-      if (matchingCode) {
-        setPhoneCountryCode(matchingCode.code)
-        setPhone(phoneValue.slice(matchingCode.code.length).trim())
-      } else {
-        setPhone(phoneValue)
-      }
+      const parsed = parsePhone(client.phone || '')
+      setPhoneCountryCode(parsed.countryCode)
+      setPhone(parsed.digits)
       setDob(client.date_of_birth || '')
       setNationality(client.nationality || '')
       setResidency(client.residency || 'uae_resident')
@@ -259,14 +245,9 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
         setCoBorrowerFirstName(coNameParts[0] || '')
         setCoBorrowerLastName(coNameParts.slice(1).join(' ') || '')
         // Parse co-borrower phone
-        const coPhoneValue = client.co_applicant.phone || ''
-        const coMatchingCode = COUNTRY_CODES.find(c => coPhoneValue.startsWith(c.code))
-        if (coMatchingCode) {
-          setCoBorrowerPhoneCountryCode(coMatchingCode.code)
-          setCoBorrowerPhone(coPhoneValue.slice(coMatchingCode.code.length).trim())
-        } else {
-          setCoBorrowerPhone(coPhoneValue)
-        }
+        const coParsed = parsePhone(client.co_applicant.phone || '')
+        setCoBorrowerPhoneCountryCode(coParsed.countryCode)
+        setCoBorrowerPhone(coParsed.digits)
         setCoBorrowerEmail(client.co_applicant.email || '')
         setCoBorrowerSalary(client.co_applicant.monthly_salary || '')
       }
@@ -367,8 +348,8 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
     // Personal Information
     if (!firstName.trim()) errors.push('First Name is required')
     if (!lastName.trim()) errors.push('Last Name is required')
-    if (!phone.trim()) errors.push('Phone Number is required')
-    else if (!/^[0-9]{7,12}$/.test(phone.replace(/[\s-]/g, ''))) errors.push('Invalid phone format (7-12 digits)')
+    const phoneError = validatePhoneDigits(phone, phoneCountryCode)
+    if (phoneError) errors.push(phoneError)
     if (!email.trim()) errors.push('Email is required')
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errors.push('Invalid email format')
     if (!dob) errors.push('Date of Birth is required')
@@ -388,8 +369,8 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
     if (applicationType === 'joint') {
       if (!coBorrowerFirstName.trim()) errors.push('Co-borrower First Name is required')
       if (!coBorrowerLastName.trim()) errors.push('Co-borrower Last Name is required')
-      if (!coBorrowerPhone.trim()) errors.push('Co-borrower Phone is required')
-      else if (!/^[0-9]{7,12}$/.test(coBorrowerPhone.replace(/[\s-]/g, ''))) errors.push('Invalid co-borrower phone format')
+      const coPhoneError = validatePhoneDigits(coBorrowerPhone, coBorrowerPhoneCountryCode)
+      if (coPhoneError) errors.push(`Co-borrower: ${coPhoneError}`)
       if (!coBorrowerEmail.trim()) errors.push('Co-borrower Email is required')
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(coBorrowerEmail.trim())) errors.push('Invalid co-borrower email format')
       if (!coBorrowerSalary) errors.push('Co-borrower Monthly Salary is required')
@@ -401,7 +382,7 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
     }
 
     const fullName = lastName.trim() ? `${firstName.trim()} ${lastName.trim()}` : firstName.trim()
-    const fullPhone = `${phoneCountryCode}${phone.trim()}`
+    const fullPhone = assemblePhone(phoneCountryCode, phone)
     const ccLimits = liabilities.filter(l => l.type === 'cc').map(l => l.amount)
     const autoLoan = liabilities.find(l => l.type === 'auto')?.amount
     const personalLoan = liabilities.find(l => l.type === 'personal')?.amount
@@ -459,7 +440,7 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
         const coFullName = coBorrowerLastName.trim()
           ? `${coBorrowerFirstName.trim()} ${coBorrowerLastName.trim()}`
           : coBorrowerFirstName.trim()
-        const coFullPhone = `${coBorrowerPhoneCountryCode}${coBorrowerPhone.trim()}`
+        const coFullPhone = assemblePhone(coBorrowerPhoneCountryCode, coBorrowerPhone)
 
         await updateCoApplicantMutation.mutateAsync({
           clientId: savedClientId,
@@ -701,33 +682,45 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                 </FormField>
                 <FormField label="Phone *">
                   <div className="flex gap-1">
-                    <select
-                      value={phoneCountryCode}
-                      onChange={(e) => setPhoneCountryCode(e.target.value)}
-                      disabled={!isCreateMode && client?.phone_locked}
-                      className="h-9 px-1 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white w-20 shrink-0 disabled:bg-gray-50 disabled:text-gray-500"
-                    >
-                      {COUNTRY_CODES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-                    </select>
+                    <div className="w-24 shrink-0">
+                      <SearchableSelect
+                        value={phoneCountryCode}
+                        onChange={setPhoneCountryCode}
+                        options={COUNTRY_CODES.map(c => ({ value: c.code, label: c.label }))}
+                        displayValue={(opt) => opt.value}
+                        placeholder="+971"
+                        searchPlaceholder="Search country..."
+                        disabled={!isCreateMode && client?.phone_locked}
+                        size="sm"
+                        popoverMinWidth={220}
+                      />
+                    </div>
                     <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder={findCountryCode(phoneCountryCode)?.example ?? ''}
+                      maxLength={getExpectedDigits(phoneCountryCode).max + 1}
                       disabled={!isCreateMode && client?.phone_locked}
                       className="flex-1 min-w-0 h-9 px-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
+                  {phone && validatePhoneDigits(phone, phoneCountryCode) && (
+                    <p className="text-xs text-amber-600 mt-1">{validatePhoneDigits(phone, phoneCountryCode)}</p>
+                  )}
                 </FormField>
                 <FormField label="Email *">
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                     className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
                 </FormField>
                 <FormField label="Date of Birth *">
-                  <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={new Date().toISOString().split('T')[0]}
+                  <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={getTodayISO()}
                     className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
                 </FormField>
                 <FormField label="Nationality *">
-                  <select value={nationality} onChange={(e) => setNationality(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    <option value="">Select...</option>
-                    {NATIONALITY_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={nationality}
+                    onChange={setNationality}
+                    options={NATIONALITY_OPTIONS.map(opt => ({ value: opt, label: opt }))}
+                    placeholder="Select..."
+                    searchPlaceholder="Search nationality..."
+                  />
                 </FormField>
                 <FormField label="Residency *">
                   <select value={residency} onChange={(e) => setResidency(e.target.value as ResidencyType)}
@@ -746,6 +739,7 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                     value={sourceId}
                     onChange={setSourceId}
                     currentSource={client?.source}
+                    disabled={!isCreateMode}
                   />
                 </FormField>
               </div>
@@ -781,16 +775,26 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                     </FormField>
                     <FormField label="Phone *">
                       <div className="flex gap-2">
-                        <select
-                          value={coBorrowerPhoneCountryCode}
-                          onChange={(e) => setCoBorrowerPhoneCountryCode(e.target.value)}
-                          className="h-9 px-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white w-28"
-                        >
-                          {COUNTRY_CODES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
-                        </select>
+                        <div className="w-24 shrink-0">
+                          <SearchableSelect
+                            value={coBorrowerPhoneCountryCode}
+                            onChange={setCoBorrowerPhoneCountryCode}
+                            options={COUNTRY_CODES.map(c => ({ value: c.code, label: c.label }))}
+                            displayValue={(opt) => opt.value}
+                            placeholder="+971"
+                            searchPlaceholder="Search country..."
+                            size="sm"
+                            popoverMinWidth={220}
+                          />
+                        </div>
                         <input type="tel" value={coBorrowerPhone} onChange={(e) => setCoBorrowerPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                          placeholder={findCountryCode(coBorrowerPhoneCountryCode)?.example ?? ''}
+                          maxLength={getExpectedDigits(coBorrowerPhoneCountryCode).max + 1}
                           className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
                       </div>
+                      {coBorrowerPhone && validatePhoneDigits(coBorrowerPhone, coBorrowerPhoneCountryCode) && (
+                        <p className="text-xs text-amber-600 mt-1">{validatePhoneDigits(coBorrowerPhone, coBorrowerPhoneCountryCode)}</p>
+                      )}
                     </FormField>
                     <FormField label="Email *">
                       <input type="email" value={coBorrowerEmail} onChange={(e) => setCoBorrowerEmail(e.target.value)}
@@ -839,11 +843,17 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                           <option value="mortgage">Mortgage</option>
                         </select>
                         {liability.type === 'cc' && (
-                          <select value={liability.bankName || ''} onChange={(e) => updateLiability(index, 'bankName', e.target.value)}
-                            className="h-8 px-2 text-xs border border-gray-200 rounded-md focus:outline-none bg-white">
-                            <option value="">Bank</option>
-                            {UAE_BANKS.map(bank => <option key={bank} value={bank}>{bank}</option>)}
-                          </select>
+                          <div className="w-32 shrink-0">
+                            <SearchableSelect
+                              value={liability.bankName || ''}
+                              onChange={(val) => updateLiability(index, 'bankName', val)}
+                              options={UAE_BANKS.map(bank => ({ value: bank, label: bank }))}
+                              placeholder="Bank"
+                              searchPlaceholder="Search bank..."
+                              size="sm"
+                              popoverMinWidth={180}
+                            />
+                          </div>
                         )}
                         <input type="text" inputMode="numeric" value={liability.amount}
                           onChange={(e) => updateLiability(index, 'amount', sanitizeAmount(e.target.value))}
@@ -1093,41 +1103,41 @@ interface TrustedSourceSelectorProps {
     name: string
     channel_name: string
   } | null
+  disabled?: boolean
 }
 
-function TrustedSourceSelector({ value, onChange, currentSource }: TrustedSourceSelectorProps) {
+function TrustedSourceSelector({ value, onChange, currentSource, disabled }: TrustedSourceSelectorProps) {
   const { data: sources, isLoading } = useSourcesForFilter('trusted')
-
-  if (isLoading && currentSource) {
-    return (
-      <select className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white" disabled>
-        <option>{currentSource.name} ({currentSource.channel_name})</option>
-      </select>
-    )
-  }
 
   if (isLoading) {
     return (
-      <select className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white" disabled>
-        <option>Loading...</option>
-      </select>
+      <SearchableSelect
+        value=""
+        onChange={() => {}}
+        options={currentSource ? [{ value: currentSource.id, label: `${currentSource.name} (${currentSource.channel_name})` }] : []}
+        placeholder={currentSource ? `${currentSource.name} (${currentSource.channel_name})` : 'Loading...'}
+        disabled
+      />
     )
   }
 
   const hasCurrentSource = currentSource && sources?.some(s => s.id === currentSource.id)
 
+  const options: SearchableSelectOption[] = [
+    ...(currentSource && !hasCurrentSource
+      ? [{ value: currentSource.id, label: `${currentSource.name} (${currentSource.channel_name})` }]
+      : []),
+    ...(sources?.map(opt => ({ value: opt.id, label: `${opt.name} (${opt.channelName})` })) || []),
+  ]
+
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-      <option value="">Select source...</option>
-      {currentSource && !hasCurrentSource && (
-        <option key={currentSource.id} value={currentSource.id}>
-          {currentSource.name} ({currentSource.channel_name})
-        </option>
-      )}
-      {sources?.map(opt => (
-        <option key={opt.id} value={opt.id}>{opt.name} ({opt.channelName})</option>
-      ))}
-    </select>
+    <SearchableSelect
+      value={value}
+      onChange={onChange}
+      options={options}
+      placeholder="Select source..."
+      searchPlaceholder="Search source..."
+      disabled={disabled}
+    />
   )
 }

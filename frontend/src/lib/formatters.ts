@@ -2,45 +2,8 @@
  * Common formatting utilities used across the application.
  */
 
-/**
- * Format a date string to relative time (e.g., "2d ago", "5h ago").
- */
-export function formatTimeAgo(dateString: string): string {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffSecs = Math.floor(diffMs / 1000)
-  const diffMins = Math.floor(diffSecs / 60)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffDays > 0) return `${diffDays}d ago`
-  if (diffHours > 0) return `${diffHours}h ago`
-  if (diffMins > 0) return `${diffMins}m ago`
-  return 'Just now'
-}
-
-/**
- * Format a date string to "DD Mon YYYY" format (e.g., "15 Jan 2024").
- */
-export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-/**
- * Format a date string to "Mon DD, YYYY" format (e.g., "Jan 15, 2024").
- */
-export function formatDateAE(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-AE', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
+// Re-export date/time utilities from centralized module
+export { formatDate, formatTimeAgo } from './dateUtils'
 
 /**
  * Format a number as AED currency (e.g., "AED 150,000").

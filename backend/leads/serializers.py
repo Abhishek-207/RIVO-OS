@@ -8,6 +8,7 @@ and status management.
 from rest_framework import serializers
 
 from acquisition_channels.models import Source
+from common.phone import validate_phone, normalize_phone
 from leads.models import Lead, LeadStatus, CampaignStatus, LeadInteraction, LeadMessage
 
 
@@ -89,6 +90,13 @@ class LeadUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
         fields = ['name', 'phone', 'email', 'intent']
+
+    def validate_phone(self, value):
+        """Validate phone number format per country code."""
+        error = validate_phone(value)
+        if error:
+            raise serializers.ValidationError(error)
+        return normalize_phone(value)
 
     def validate(self, attrs):
         """Prevent updates to terminal leads."""

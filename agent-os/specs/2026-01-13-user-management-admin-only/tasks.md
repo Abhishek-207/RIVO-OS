@@ -224,4 +224,4 @@ Available mockups in `planning/visuals/`:
 | Admin | ADMIN | System configuration. Manages users, channels, bank products, templates. |
 | Manager | MANAGER | Operations oversight. Sees all clients/cases. Can reassign work. |
 | Mortgage Specialist | MS | Works clients to cases. Collects data/docs, creates cases. |
-| Process Executive | PE | Works cases to disbursement. Verifies docs, submits to bank. |
+| Process Owner | PO | Works cases to disbursement. Verifies docs, submits to bank. |

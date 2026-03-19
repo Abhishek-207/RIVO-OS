@@ -3,8 +3,8 @@
  * Supports URL state for filters to enable deep linking.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { Trash2, ChevronDown, User } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Trash2, User } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { cn } from '@/lib/utils'
 import {
@@ -18,6 +18,7 @@ import { useUrlFilters } from '@/hooks/useUrlState'
 import { useDebouncedSearch } from '@/hooks/useDebouncedSearch'
 import type { CaseStage, CaseListItem } from '@/types/mortgage'
 import { CaseSidePanel } from '@/components/CaseSidePanel'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { ClientSidePanel } from '@/components/ClientSidePanel'
 import { Pagination } from '@/components/Pagination'
 import {
@@ -31,7 +32,8 @@ import {
   SearchInput,
 } from '@/components/ui/TablePageLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatCurrencyAED, formatDateAE } from '@/lib/formatters'
+import { formatCurrencyAED } from '@/lib/formatters'
+import { formatDate } from '@/lib/dateUtils'
 
 const stageColors: Record<CaseStage, string> = {
   // Active stages (main flow)
@@ -79,64 +81,29 @@ function BankFilterDropdown({ value, onChange, banks }: {
   onChange: (value: string) => void
   banks: Array<{ id: string; name: string; icon: string }> | undefined
 }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const selectedBank = banks?.find(b => b.id === value)
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  const bankOptions = [
+    { value: '', label: 'All Banks' },
+    ...(banks || []).map(bank => ({
+      value: bank.id,
+      label: bank.name,
+      icon: bank.icon ? (
+        <div className="h-4 w-4 rounded bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+          <img src={bank.icon} alt="" className="h-3 w-3 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        </div>
+      ) : undefined,
+    })),
+  ]
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="h-8 px-3 text-xs border border-gray-200 rounded-lg bg-white flex items-center gap-2 min-w-[140px]"
-      >
-        {selectedBank ? (
-          <span className="flex items-center gap-2">
-            <div className="h-4 w-4 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-              <img src={selectedBank.icon} alt="" className="h-3 w-3 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-            </div>
-            <span className="text-gray-700 truncate max-w-[80px]">{selectedBank.name}</span>
-          </span>
-        ) : (
-          <span className="text-gray-700">All Banks</span>
-        )}
-        <ChevronDown className={cn('h-3 w-3 text-gray-400 ml-auto transition-transform', isOpen && 'rotate-180')} />
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-30 w-56 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          <button
-            type="button"
-            onClick={() => { onChange(''); setIsOpen(false) }}
-            className={cn('w-full px-3 py-2 text-xs text-left hover:bg-gray-50 transition-colors', !value && 'bg-blue-50')}
-          >
-            <span className="text-gray-700">All Banks</span>
-          </button>
-          {banks?.map(bank => (
-            <button
-              key={bank.id}
-              type="button"
-              onClick={() => { onChange(bank.id); setIsOpen(false) }}
-              className={cn('w-full px-3 py-2 text-xs text-left flex items-center gap-2 hover:bg-gray-50 transition-colors', value === bank.id && 'bg-blue-50')}
-            >
-              <div className="h-5 w-5 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                <img src={bank.icon} alt="" className="h-4 w-4 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-              </div>
-              <span className="text-gray-700">{bank.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="min-w-[150px]">
+      <SearchableSelect
+        value={value}
+        onChange={onChange}
+        options={bankOptions}
+        placeholder="All Banks"
+        searchPlaceholder="Search bank..."
+        size="sm"
+      />
     </div>
   )
 }
@@ -218,28 +185,21 @@ export function CasesPage() {
             placeholder="Search by client name..."
           />
           <BankFilterDropdown value={bankFilter} onChange={(value) => setFilters({ bank: value, page: '1' })} banks={banks} />
-          <select
-            value={stageFilter}
-            onChange={(e) => setFilters({ stage: e.target.value, page: '1' })}
-            className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
-          >
-            <option value="all">All Stages</option>
-            <optgroup label="Active Stages">
-              {CASE_STAGES.active.map((stage) => (
-                <option key={stage.value} value={stage.value}>{stage.label}</option>
-              ))}
-            </optgroup>
-            <optgroup label="Hold">
-              {CASE_STAGES.hold.map((stage) => (
-                <option key={stage.value} value={stage.value}>{stage.label}</option>
-              ))}
-            </optgroup>
-            <optgroup label="Terminal">
-              {CASE_STAGES.terminal.map((stage) => (
-                <option key={stage.value} value={stage.value}>{stage.label}</option>
-              ))}
-            </optgroup>
-          </select>
+          <div className="min-w-[160px]">
+            <SearchableSelect
+              value={stageFilter}
+              onChange={(value) => setFilters({ stage: value, page: '1' })}
+              options={[
+                { value: 'all', label: 'All Stages' },
+                ...CASE_STAGES.active.map(s => ({ value: s.value, label: s.label, group: 'Active Stages' })),
+                ...CASE_STAGES.hold.map(s => ({ value: s.value, label: s.label, group: 'Hold' })),
+                ...CASE_STAGES.terminal.map(s => ({ value: s.value, label: s.label, group: 'Terminal' })),
+              ]}
+              placeholder="All Stages"
+              searchPlaceholder="Search stage..."
+              size="sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -305,7 +265,7 @@ export function CasesPage() {
                     <span className="text-xs text-gray-600">{formatCurrencyAED(caseItem.loan_amount)}</span>
                   </td>
                   <td className="py-3">
-                    <span className="text-xs text-gray-500">{formatDateAE(caseItem.created_at)}</span>
+                    <span className="text-xs text-gray-500">{formatDate(caseItem.created_at)}</span>
                   </td>
                   <td className="py-3">
                     <div className="flex items-center gap-1">

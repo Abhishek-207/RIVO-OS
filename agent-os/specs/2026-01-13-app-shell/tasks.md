@@ -121,7 +121,7 @@ Total Tasks: 8 Task Groups
     - Admin: Settings sub-items only (Users & Roles, Channels, Bank Products, Templates, SLA Config)
     - Manager: Dashboard, Clients, Cases, Analytics
     - Mortgage Specialist: Dashboard, Clients, Cases, Toolbox items
-    - Process Executive: Dashboard, Cases, Toolbox items
+    - Process Owner: Dashboard, Cases, Toolbox items
   - [x] 5.2 Create useNavigationItems hook
     - Accept user role from auth context
     - Filter navigation items based on role permissions

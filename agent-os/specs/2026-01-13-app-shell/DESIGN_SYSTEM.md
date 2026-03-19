@@ -19,7 +19,7 @@
 ### Semantic Colors
 - **Green 600**: `#16a34a` - Active status, success
 - **Red 500**: `#ef4444` - Error, destructive actions
-- **Purple 700**: `#6b4c8a` - Process Executive role
+- **Purple 700**: `#6b4c8a` - Process Owner role
 
 ### Role Badge Colors
 All roles use light background colors for visual consistency:
@@ -29,7 +29,7 @@ All roles use light background colors for visual consistency:
 | Admin | `#e8f0f5` | `#1e3a5f` |
 | Manager | `#e8f0f5` | `#1e3a5f` |
 | Mortgage Specialist | `#e8f5f0` | `#2d6a4f` |
-| Process Executive | `#f0e8f5` | `#6b4c8a` |
+| Process Owner | `#f0e8f5` | `#6b4c8a` |
 
 ### Avatar Colors (by user)
 - Admin User: `#e07a5f` (coral)

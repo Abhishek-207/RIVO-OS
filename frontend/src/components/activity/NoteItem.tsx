@@ -8,6 +8,7 @@ import { useDeleteNote } from '@/hooks/useAudit'
 import { NoteForm } from './NoteForm'
 import type { NoteData } from '@/types/audit'
 import { cn } from '@/lib/utils'
+import { formatTime, formatShortDate } from '@/lib/dateUtils'
 
 interface NoteItemProps {
   note: NoteData
@@ -28,23 +29,6 @@ export function NoteItem({ note, canEdit, canDelete, onUpdate }: NoteItemProps) 
     } catch (error) {
       console.error('Failed to delete note:', error)
     }
-  }
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp)
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    })
-  }
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    })
   }
 
   if (isEditing) {
@@ -112,8 +96,8 @@ export function NoteItem({ note, canEdit, canDelete, onUpdate }: NoteItemProps) 
         >
           <Bell className="w-3 h-3" />
           <span>
-            Reminder: {formatDate(note.reminder.reminder_date)}
-            {note.reminder.reminder_time && ` at ${note.reminder.reminder_time}`}
+            Reminder: {formatShortDate(note.reminder.reminder_date)}
+            {note.reminder.reminder_time && ` at ${formatTime(note.reminder.reminder_time)}`}
           </span>
           {note.reminder.is_overdue && <span className="font-bold">- Overdue</span>}
         </div>

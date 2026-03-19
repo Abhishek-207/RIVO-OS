@@ -5,6 +5,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { formatTime } from '@/lib/dateUtils'
 import { useMessageTemplates } from '@/hooks/useMessageTemplates'
 import { fillTemplateVariables } from '@/utils/templateVariables'
 
@@ -67,14 +68,6 @@ export function WhatsAppChat({ messages, isLoading, isSending, onSend, clientInf
       setSelectedTemplate(null)
       setShowTemplates(false)
     }
-  }
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    })
   }
 
   const getStatusText = (status: string) => {

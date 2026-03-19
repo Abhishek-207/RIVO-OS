@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
                 ('email', models.EmailField(help_text='User email address', max_length=255, unique=True, validators=[django.core.validators.EmailValidator(message='Enter a valid email address.')])),
                 ('name', models.CharField(help_text='Full name of the user for display', max_length=255)),
                 ('password_hash', models.CharField(blank=True, default='', help_text='SHA256 hash of password for local auth', max_length=64)),
-                ('role', models.CharField(choices=[('admin', 'Admin'), ('manager', 'Manager'), ('mortgage_specialist', 'Mortgage Specialist'), ('process_executive', 'Process Executive')], help_text='User role determining access permissions', max_length=20)),
+                ('role', models.CharField(choices=[('admin', 'Admin'), ('manager', 'Manager'), ('mortgage_specialist', 'Mortgage Specialist'), ('process_owner', 'Process Owner')], help_text='User role determining access permissions', max_length=20)),
                 ('is_active', models.BooleanField(default=True, help_text='Whether the user can log in (soft delete mechanism)')),
                 ('created_at', models.DateTimeField(auto_now_add=True, help_text='Timestamp when user was created')),
                 ('updated_at', models.DateTimeField(auto_now=True, help_text='Timestamp when user was last updated')),

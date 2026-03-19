@@ -5,8 +5,9 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { X, AlertCircle, Loader2, ChevronDown } from 'lucide-react'
+import { X, AlertCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { caseToast, clientToast } from '@/lib/toastMessages'
 import { FormField } from '@/components/ui/FormField'
 import { SidePanelWrapper } from '@/components/ui/SidePanelWrapper'
@@ -114,86 +115,30 @@ interface BankDropdownProps {
 }
 
 function BankDropdown({ value, onChange, banks, disabled }: BankDropdownProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  const selectedBank = banks?.find(b => b.name === value)
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  const bankOptions = (banks || []).map(bank => ({
+    value: bank.name,
+    label: bank.name,
+    icon: bank.icon ? (
+      <div className="h-5 w-5 rounded bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+        <img
+          src={bank.icon}
+          alt=""
+          className="h-4 w-4 object-contain"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+        />
+      </div>
+    ) : undefined,
+  }))
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        disabled={disabled}
-        className={cn(
-          'w-full h-9 px-3 text-sm border border-gray-200 rounded-lg bg-white text-left flex items-center justify-between',
-          'focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]',
-          disabled && 'opacity-50 cursor-not-allowed'
-        )}
-      >
-        {selectedBank ? (
-          <span className="flex items-center gap-2">
-            <div className="h-5 w-5 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-              {selectedBank.icon && (
-                <img
-                  src={selectedBank.icon}
-                  alt=""
-                  className="h-4 w-4 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none'
-                  }}
-                />
-              )}
-            </div>
-            <span className="text-gray-900">{selectedBank.name}</span>
-          </span>
-        ) : (
-          <span className="text-gray-400">Select a bank</span>
-        )}
-        <ChevronDown className={cn('h-4 w-4 text-gray-400 transition-transform', isOpen && 'rotate-180')} />
-      </button>
-
-      {isOpen && banks && (
-        <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {banks.map(bank => (
-            <button
-              key={bank.id}
-              type="button"
-              onClick={() => { onChange(bank.name); setIsOpen(false) }}
-              className={cn(
-                'w-full px-3 py-2.5 text-sm text-left flex items-center gap-3 hover:bg-gray-50 transition-colors',
-                value === bank.name && 'bg-blue-50'
-              )}
-            >
-              <div className="h-6 w-6 rounded bg-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {bank.icon && (
-                  <img
-                    src={bank.icon}
-                    alt=""
-                    className="h-5 w-5 object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none'
-                    }}
-                  />
-                )}
-              </div>
-              <span className="text-gray-900">{bank.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <SearchableSelect
+      value={value}
+      onChange={onChange}
+      options={bankOptions}
+      placeholder="Select a bank"
+      searchPlaceholder="Search bank..."
+      disabled={disabled}
+    />
   )
 }
 
@@ -336,19 +281,17 @@ function CreateCaseContent({ onClose, preselectedClientId }: CreateCaseContentPr
         <div className="bg-white border border-gray-100 rounded-xl p-4 space-y-4">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Deal Information</h3>
           <FormField label="Select Client *">
-            <select
+            <SearchableSelect
               value={selectedClientId || ''}
-              onChange={(e) => setSelectedClientId(e.target.value || null)}
+              onChange={(val) => setSelectedClientId(val || null)}
+              options={activeClients.map(client => ({
+                value: client.id,
+                label: `${client.name} - ${client.phone}`,
+              }))}
+              placeholder="Select a client"
+              searchPlaceholder="Search client..."
               disabled={!!preselectedClientId}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white disabled:opacity-50"
-            >
-              <option value="">Select a client</option>
-              {activeClients.map(client => (
-                <option key={client.id} value={client.id}>
-                  {client.name} - {client.phone}
-                </option>
-              ))}
-            </select>
+            />
           </FormField>
 
           {/* Case Type Toggle */}
@@ -837,12 +780,20 @@ function StageDropdown({
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [pendingStage, setPendingStage] = useState<CaseStage | null>(null)
 
-  const handleChange = (newStage: CaseStage) => {
-    if (isTerminalStage(newStage)) {
-      setPendingStage(newStage)
+  const stageOptions = [
+    ...CASE_STAGES.active.map(s => ({ value: s.value, label: s.label, group: 'Active Stages' })),
+    ...CASE_STAGES.query.map(s => ({ value: s.value, label: s.label, group: 'Queries' })),
+    ...CASE_STAGES.hold.map(s => ({ value: s.value, label: s.label, group: 'Hold' })),
+    ...CASE_STAGES.terminal.map(s => ({ value: s.value, label: s.label, group: 'Terminal' })),
+  ]
+
+  const handleChange = (newStage: string) => {
+    const castStage = newStage as CaseStage
+    if (isTerminalStage(castStage)) {
+      setPendingStage(castStage)
       setShowConfirmation(true)
     } else {
-      onChange(newStage)
+      onChange(castStage)
     }
   }
 
@@ -861,36 +812,17 @@ function StageDropdown({
 
   return (
     <>
-      <select
-        value={stage}
-        onChange={(e) => handleChange(e.target.value as CaseStage)}
-        disabled={isLoading || disabled}
-        className={cn(
-          'px-2 py-0.5 text-xs font-medium rounded border-0 focus:outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
-          stageColors[stage]
-        )}
-      >
-        <optgroup label="Active Stages">
-          {CASE_STAGES.active.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </optgroup>
-        <optgroup label="Queries">
-          {CASE_STAGES.query.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </optgroup>
-        <optgroup label="Hold">
-          {CASE_STAGES.hold.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </optgroup>
-        <optgroup label="Terminal">
-          {CASE_STAGES.terminal.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </optgroup>
-      </select>
+      <div className={cn('rounded', stageColors[stage])}>
+        <SearchableSelect
+          value={stage}
+          onChange={handleChange}
+          options={stageOptions}
+          disabled={isLoading || disabled}
+          searchPlaceholder="Search stage..."
+          size="sm"
+          className={cn('border-0 font-medium', stageColors[stage])}
+        />
+      </div>
 
       {/* Terminal Stage Confirmation Modal */}
       {showConfirmation && pendingStage && (

@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='user',
             name='role',
-            field=models.CharField(choices=[('admin', 'Admin'), ('channel_owner', 'Channel Owner'), ('team_leader', 'Team Leader'), ('mortgage_specialist', 'Mortgage Specialist'), ('process_officer', 'Process Officer')], help_text='User role determining access permissions', max_length=20),
+            field=models.CharField(choices=[('admin', 'Admin'), ('channel_owner', 'Channel Owner'), ('team_leader', 'Team Leader'), ('mortgage_specialist', 'Mortgage Specialist'), ('process_owner', 'Process Owner')], help_text='User role determining access permissions', max_length=20),
         ),
     ]

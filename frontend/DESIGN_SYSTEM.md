@@ -7,6 +7,7 @@ Comprehensive design specifications for building consistent UI across all pages.
 ## Colors
 
 ### Primary Palette
+
 ```
 Navy (Primary):     #1e3a5f
 Navy Hover:         #0f2744
@@ -14,6 +15,7 @@ Navy Light BG:      #f5f8fa (active states)
 ```
 
 ### Background Colors
+
 ```
 Page Background:    #f8f9fb
 Card/Content:       #ffffff (white)
@@ -21,6 +23,7 @@ Sidebar/Header:     #ffffff (white)
 ```
 
 ### Status Colors
+
 ```
 Active:             #1e3a5f (navy) - toggle bg
 Active Text:        #1e3a5f (navy)
@@ -32,6 +35,7 @@ Error Text:         red-600
 ```
 
 ### Gray Scale
+
 ```
 Text Primary:       gray-900
 Text Secondary:     gray-600
@@ -47,6 +51,7 @@ Hover BG:           gray-50
 ## Typography
 
 ### Font Sizes
+
 ```
 Page Title:         text-sm (14px), font-semibold
 Page Subtitle:      text-xs (12px), text-gray-500
@@ -64,12 +69,14 @@ Section Labels:     text-[10px] (10px), font-semibold, uppercase, tracking-wider
 ## Logo
 
 ### Logo Sizes
+
 ```
 Sidebar/Navbar:     h-6 (24px)
 Login Page:         h-10 (40px)
 ```
 
 ### Usage
+
 ```tsx
 // Navbar
 <img src="/rivo-logo.png" alt="Rivo" className="h-6" />
@@ -83,17 +90,21 @@ Login Page:         h-10 (40px)
 ## App Shell
 
 ### Header
+
 ```tsx
 <header className="h-14 bg-white flex items-center justify-between px-4">
 ```
+
 - Height: `h-14` (56px)
 - Background: white
 - No border/separator
 
 ### Sidebar
+
 ```tsx
 <aside className="fixed left-0 top-0 bottom-0 z-40 bg-white flex flex-col">
 ```
+
 - Width collapsed: `w-[64px]`
 - Width expanded: `w-[220px]`
 - Background: white
@@ -101,9 +112,11 @@ Login Page:         h-10 (40px)
 - Logo header: `h-14` (matches page header)
 
 ### Main Content Area
+
 ```tsx
 <main className="flex-1 overflow-auto bg-[#f8f9fb] rounded-tl-xl">
 ```
+
 - Background: `#f8f9fb`
 - Top-left rounded corner: `rounded-tl-xl`
 
@@ -112,6 +125,7 @@ Login Page:         h-10 (40px)
 ## Page Layout
 
 ### Page Header
+
 ```tsx
 <div className="px-6 py-4">
   <div className="flex items-center justify-between">
@@ -128,13 +142,13 @@ Login Page:         h-10 (40px)
 ```
 
 ### Content Card
+
 ```tsx
 <div className="mx-6 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-  <div className="px-4 pt-4">
-    {/* Content */}
-  </div>
+  <div className="px-4 pt-4">{/* Content */}</div>
 </div>
 ```
+
 - Margin: `mx-6`
 - Background: white
 - Border radius: `rounded-xl`
@@ -158,24 +172,27 @@ function StatusToggle({ isActive, isLoading, onChange }) {
       {/* Toggle Switch */}
       <div
         className={`relative w-8 h-[18px] rounded-full transition-colors ${
-          isActive ? 'bg-[#1e3a5f]' : 'bg-gray-300'
+          isActive ? "bg-[#1e3a5f]" : "bg-gray-300"
         }`}
       >
         <div
           className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform ${
-            isActive ? 'translate-x-[16px]' : 'translate-x-[2px]'
+            isActive ? "translate-x-[16px]" : "translate-x-[2px]"
           }`}
         />
       </div>
-      <span className={`text-[11px] font-medium ${isActive ? 'text-[#1e3a5f]' : 'text-gray-400'}`}>
-        {isActive ? 'Active' : 'Inactive'}
+      <span
+        className={`text-[11px] font-medium ${isActive ? "text-[#1e3a5f]" : "text-gray-400"}`}
+      >
+        {isActive ? "Active" : "Inactive"}
       </span>
     </button>
-  )
+  );
 }
 ```
 
 ### Specs
+
 - Track width: `w-8` (32px)
 - Track height: `h-[18px]` (18px)
 - Knob size: `w-[14px] h-[14px]` (14px)
@@ -194,14 +211,14 @@ const roleLabels = {
   admin: 'Admin',
   manager: 'Manager',
   mortgage_specialist: 'Mortgage Specialist',
-  process_executive: 'Process Executive',
+  process_owner: 'Process Owner',
 }
 
 const roleColors = {
   admin: 'bg-[#1e3a5f] text-white',
   manager: 'bg-[#e8f0f5] text-[#1e3a5f]',
   mortgage_specialist: 'bg-[#e8f5f0] text-[#2d6a4f]',
-  process_executive: 'bg-[#f0e8f5] text-[#6b4c8a]',
+  process_owner: 'bg-[#f0e8f5] text-[#6b4c8a]',
 }
 
 // Usage
@@ -211,12 +228,13 @@ const roleColors = {
 ```
 
 ### Role Color Specs
-| Role | Background | Text |
-|------|------------|------|
-| Admin | `#1e3a5f` (navy) | white |
-| Manager | `#e8f0f5` (light blue) | `#1e3a5f` |
-| Mortgage Specialist | `#e8f5f0` (light green) | `#2d6a4f` |
-| Process Executive | `#f0e8f5` (light purple) | `#6b4c8a` |
+
+| Role                | Background               | Text      |
+| ------------------- | ------------------------ | --------- |
+| Admin               | `#1e3a5f` (navy)         | white     |
+| Manager             | `#e8f0f5` (light blue)   | `#1e3a5f` |
+| Mortgage Specialist | `#e8f5f0` (light green)  | `#2d6a4f` |
+| Process Owner       | `#f0e8f5` (light purple) | `#6b4c8a` |
 
 ---
 
@@ -226,26 +244,29 @@ User avatar with consistent colors based on ID.
 
 ```tsx
 const avatarColors = [
-  'bg-[#e07a5f]',  // coral
-  'bg-[#4a9079]',  // teal
-  'bg-[#7c7c8a]',  // gray
-  'bg-[#3d8b8b]',  // cyan
-  'bg-[#6b4c8a]',  // purple
-  'bg-[#c17f59]',  // orange
-]
+  "bg-[#e07a5f]", // coral
+  "bg-[#4a9079]", // teal
+  "bg-[#7c7c8a]", // gray
+  "bg-[#3d8b8b]", // cyan
+  "bg-[#6b4c8a]", // purple
+  "bg-[#c17f59]", // orange
+];
 
 function getAvatarColor(id: string): string {
-  const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  return avatarColors[hash % avatarColors.length]
+  const hash = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return avatarColors[hash % avatarColors.length];
 }
 
 // Usage
-<div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium text-white ${getAvatarColor(id)}`}>
+<div
+  className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-medium text-white ${getAvatarColor(id)}`}
+>
   {name.slice(0, 2).toUpperCase()}
-</div>
+</div>;
 ```
 
 ### Specs
+
 - Size: `w-7 h-7` (28px)
 - Border radius: `rounded-full`
 - Text: `text-[10px] font-medium text-white`
@@ -256,6 +277,7 @@ function getAvatarColor(id: string): string {
 ## Buttons
 
 ### Primary Button
+
 ```tsx
 <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1e3a5f] text-white rounded-lg hover:bg-[#0f2744] transition-colors text-xs">
   <Icon className="h-3.5 w-3.5" />
@@ -264,6 +286,7 @@ function getAvatarColor(id: string): string {
 ```
 
 ### Full-width Form Button
+
 ```tsx
 <button className="w-full px-4 py-2 text-sm bg-[#1e3a5f] text-white rounded-lg hover:bg-[#0f2744] transition-colors font-medium disabled:opacity-50">
   Submit
@@ -271,6 +294,7 @@ function getAvatarColor(id: string): string {
 ```
 
 ### Icon Button (Actions)
+
 ```tsx
 <button className="p-1.5 text-gray-400 hover:text-gray-600 rounded transition-colors">
   <Icon className="h-3.5 w-3.5" />
@@ -278,6 +302,7 @@ function getAvatarColor(id: string): string {
 ```
 
 ### Destructive Icon Button
+
 ```tsx
 <button className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors">
   <Trash2 className="h-3.5 w-3.5" />
@@ -289,6 +314,7 @@ function getAvatarColor(id: string): string {
 ## Form Elements
 
 ### Text Input
+
 ```tsx
 <input
   type="text"
@@ -298,6 +324,7 @@ function getAvatarColor(id: string): string {
 ```
 
 ### Select Dropdown
+
 ```tsx
 <select className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none">
   <option value="value">Label</option>
@@ -305,6 +332,7 @@ function getAvatarColor(id: string): string {
 ```
 
 ### Search Input
+
 ```tsx
 <div className="relative flex-1 max-w-xs">
   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
@@ -317,11 +345,13 @@ function getAvatarColor(id: string): string {
 ```
 
 ### Form Label
+
 ```tsx
 <label className="block text-xs font-medium text-gray-700 mb-1">Label</label>
 ```
 
 ### Form Specs
+
 - Input height: `h-9` (36px)
 - Search height: `h-8` (32px)
 - Border: `border border-gray-200`
@@ -336,14 +366,14 @@ Segmented control for filtering.
 
 ```tsx
 <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-  {(['all', 'active', 'inactive'] as const).map((status) => (
+  {(["all", "active", "inactive"] as const).map((status) => (
     <button
       key={status}
       onClick={() => setFilter(status)}
       className={`px-3 py-1 text-xs font-medium rounded-md transition-colors capitalize ${
         currentFilter === status
-          ? 'bg-white text-gray-900 shadow-sm'
-          : 'text-gray-500 hover:text-gray-700'
+          ? "bg-white text-gray-900 shadow-sm"
+          : "text-gray-500 hover:text-gray-700"
       }`}
     >
       {status}
@@ -353,6 +383,7 @@ Segmented control for filtering.
 ```
 
 ### Specs
+
 - Container: `bg-gray-100 rounded-lg p-0.5`
 - Tab padding: `px-3 py-1`
 - Active tab: `bg-white text-gray-900 shadow-sm rounded-md`
@@ -363,6 +394,7 @@ Segmented control for filtering.
 ## Tables
 
 ### Table Structure
+
 ```tsx
 <table className="w-full">
   <thead>
@@ -374,15 +406,14 @@ Segmented control for filtering.
   </thead>
   <tbody>
     <tr className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-      <td className="py-3">
-        Content
-      </td>
+      <td className="py-3">Content</td>
     </tr>
   </tbody>
 </table>
 ```
 
 ### Specs
+
 - Header border: `border-b border-gray-100`
 - Row border: `border-b border-gray-50`
 - Row hover: `hover:bg-gray-50/50`
@@ -399,15 +430,17 @@ Segmented control for filtering.
   {totalPages > 1 && (
     <div className="flex items-center gap-1">
       <button
-        onClick={() => setPage(p => Math.max(1, p - 1))}
+        onClick={() => setPage((p) => Math.max(1, p - 1))}
         disabled={currentPage === 1}
         className="p-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
-      <span className="px-2">{currentPage} / {totalPages}</span>
+      <span className="px-2">
+        {currentPage} / {totalPages}
+      </span>
       <button
-        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
         disabled={currentPage === totalPages}
         className="p-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
       >
@@ -419,6 +452,7 @@ Segmented control for filtering.
 ```
 
 ### Specs
+
 - Border: `border-t border-gray-100`
 - Padding: `py-3 px-4`
 - Text: `text-xs text-gray-500`
@@ -434,7 +468,7 @@ Slide-in panel from right for forms/details.
 
 ```tsx
 function SidePanel({ children, title, isOpen, onClose }) {
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <>
@@ -460,11 +494,12 @@ function SidePanel({ children, title, isOpen, onClose }) {
         </div>
       </div>
     </>
-  )
+  );
 }
 ```
 
 ### Specs
+
 - Width: `w-[400px]`
 - Header height: `h-14` (56px) - matches page header
 - Content height: `h-[calc(100%-56px)]`
@@ -478,6 +513,7 @@ function SidePanel({ children, title, isOpen, onClose }) {
 ## Error States
 
 ### Error Toast
+
 ```tsx
 <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-100 rounded-lg text-red-600 text-xs flex items-center gap-2">
   <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
@@ -489,6 +525,7 @@ function SidePanel({ children, title, isOpen, onClose }) {
 ```
 
 ### Form Error
+
 ```tsx
 <div className="p-2.5 bg-red-50 border border-red-100 rounded-lg text-red-600 text-xs">
   {error}
@@ -500,6 +537,7 @@ function SidePanel({ children, title, isOpen, onClose }) {
 ## Loading States
 
 ### Page Loading
+
 ```tsx
 <div className="h-full bg-white flex items-center justify-center">
   <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
@@ -507,6 +545,7 @@ function SidePanel({ children, title, isOpen, onClose }) {
 ```
 
 ### Button Loading
+
 ```tsx
 <span className="flex items-center justify-center gap-2">
   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -519,10 +558,9 @@ function SidePanel({ children, title, isOpen, onClose }) {
 ## Navigation Items
 
 ### Active Nav Item
+
 ```tsx
-<Link
-  className="flex items-center gap-3 px-3 py-2 text-sm rounded bg-[#f5f8fa] text-[#1e3a5f] font-medium relative"
->
+<Link className="flex items-center gap-3 px-3 py-2 text-sm rounded bg-[#f5f8fa] text-[#1e3a5f] font-medium relative">
   {/* Active indicator */}
   <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] bg-[#1e3a5f] rounded-r" />
   <Icon className="h-[18px] w-[18px] text-[#1e3a5f]" />
@@ -531,16 +569,16 @@ function SidePanel({ children, title, isOpen, onClose }) {
 ```
 
 ### Inactive Nav Item
+
 ```tsx
-<Link
-  className="flex items-center gap-3 px-3 py-2 text-sm rounded hover:bg-gray-50 text-gray-600"
->
+<Link className="flex items-center gap-3 px-3 py-2 text-sm rounded hover:bg-gray-50 text-gray-600">
   <Icon className="h-[18px] w-[18px] text-gray-400" />
   <span>Label</span>
 </Link>
 ```
 
 ### Specs
+
 - Icon size: `h-[18px] w-[18px]`
 - Padding: `px-3 py-2`
 - Active indicator: `w-[3px] bg-[#1e3a5f] rounded-r`
@@ -595,22 +633,28 @@ Dropdown backdrop:  z-10
 Located at `/src/lib/api.ts`.
 
 ```tsx
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError } from "@/lib/api";
 
 // GET request with params
-const data = await api.get<ResponseType>('/endpoint/', { page: 1, search: 'query' })
+const data = await api.get<ResponseType>("/endpoint/", {
+  page: 1,
+  search: "query",
+});
 
 // POST request
-const result = await api.post<ResponseType>('/endpoint/', { name: 'value' })
+const result = await api.post<ResponseType>("/endpoint/", { name: "value" });
 
 // PATCH request
-const updated = await api.patch<ResponseType>('/endpoint/id/', { name: 'new value' })
+const updated = await api.patch<ResponseType>("/endpoint/id/", {
+  name: "new value",
+});
 
 // DELETE request
-await api.delete('/endpoint/id/')
+await api.delete("/endpoint/id/");
 ```
 
 ### Configuration
+
 ```
 API Base URL:       VITE_API_URL || 'http://localhost:8000/api'
 Auth Token Storage: localStorage 'rivo-auth' -> { access_token }
@@ -622,17 +666,19 @@ Mock Mode:          VITE_USE_MOCK === 'true'
 ## Paginated Data Pattern
 
 ### API Response Format
+
 ```typescript
 interface PaginatedResponse<T> {
-  items: T[]
-  total: number
-  page: number
-  page_size: number
-  total_pages: number
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 ```
 
 ### Query Params
+
 ```
 page:       Current page number (1-indexed)
 page_size:  Items per page (default: 10)
@@ -641,38 +687,40 @@ status:     Filter by status (all/active/inactive)
 ```
 
 ### React Query Hook Pattern
+
 ```tsx
 export function useItems(params: QueryParams = {}) {
-  const { page = 1, page_size = 10, search = '', status = 'all' } = params
+  const { page = 1, page_size = 10, search = "", status = "all" } = params;
 
   return useQuery({
-    queryKey: ['items', { page, page_size, search, status }],
+    queryKey: ["items", { page, page_size, search, status }],
     queryFn: async (): Promise<PaginatedResponse<ItemType>> => {
-      return await api.get<PaginatedResponse<ItemType>>('/items/', {
+      return await api.get<PaginatedResponse<ItemType>>("/items/", {
         page,
         page_size,
         search: search || undefined,
-        status: status !== 'all' ? status : undefined,
-      })
+        status: status !== "all" ? status : undefined,
+      });
     },
-  })
+  });
 }
 ```
 
 ### Debounced Search Pattern
+
 ```tsx
-const [searchInput, setSearchInput] = useState('')
-const [searchQuery, setSearchQuery] = useState('')
-const [currentPage, setCurrentPage] = useState(1)
+const [searchInput, setSearchInput] = useState("");
+const [searchQuery, setSearchQuery] = useState("");
+const [currentPage, setCurrentPage] = useState(1);
 
 // Debounce search input (300ms)
 useEffect(() => {
   const timer = setTimeout(() => {
-    setSearchQuery(searchInput)
-    setCurrentPage(1)  // Reset to page 1 on search
-  }, 300)
-  return () => clearTimeout(timer)
-}, [searchInput])
+    setSearchQuery(searchInput);
+    setCurrentPage(1); // Reset to page 1 on search
+  }, 300);
+  return () => clearTimeout(timer);
+}, [searchInput]);
 
 // Use in query
 const { data, isLoading } = useItems({
@@ -680,15 +728,16 @@ const { data, isLoading } = useItems({
   page_size: 10,
   search: searchQuery,
   status: statusFilter,
-})
+});
 ```
 
 ### Page Component Pattern
+
 ```tsx
 // Data from server-side pagination
-const items = data?.items || []
-const totalItems = data?.total || 0
-const totalPages = data?.total_pages || 1
+const items = data?.items || [];
+const totalItems = data?.total || 0;
+const totalPages = data?.total_pages || 1;
 ```
 
 ---
@@ -696,6 +745,7 @@ const totalPages = data?.total_pages || 1
 ## Backend API Endpoints
 
 ### Users API
+
 ```
 GET    /api/users/                   List users (paginated)
 POST   /api/users/                   Create user
@@ -707,6 +757,7 @@ POST   /api/users/{id}/reactivate/   Reactivate user
 ```
 
 ### Auth API
+
 ```
 POST   /api/auth/login               Login with email/password
 POST   /api/auth/logout              Logout (authenticated)
@@ -715,6 +766,7 @@ POST   /api/auth/change-password     Change password
 ```
 
 ### Query Parameters (List endpoints)
+
 ```
 page:       Page number (default: 1)
 page_size:  Items per page (default: 10, max: 100)
@@ -723,6 +775,7 @@ status:     Filter: 'active' | 'inactive' | 'all'
 ```
 
 ### Response Format
+
 ```json
 {
   "items": [...],

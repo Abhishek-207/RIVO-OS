@@ -8,73 +8,86 @@ import {
   TableContainer,
 } from '@/components/ui/TablePageLayout'
 import { cn } from '@/lib/utils'
-import type { AuditAction, AuditLogQueryParams, AuditLogEntry } from '@/types/audit'
+import { formatDateTime } from '@/lib/dateUtils'
+import type { AuditAction, AuditLogQueryParams, AuditLogEntry, ChangeDisplay, ChangeDisplaySingle } from '@/types/audit'
 import { AUDIT_ACTION_LABELS, TABLE_NAME_LABELS } from '@/types/audit'
 
-function formatTimestamp(timestamp: string) {
-  const date = new Date(timestamp)
-  return date.toLocaleString('en-US', {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
-  })
+function isUpdateChange(change: ChangeDisplay): change is ChangeDisplay & { old_display: string; new_display: string } {
+  return 'old_display' in change && 'new_display' in change
 }
 
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === '') return 'empty'
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-  return String(value)
-}
-
-function ChangesDetail({ changes }: { changes: Record<string, unknown> }) {
-  if (!changes || Object.keys(changes).length === 0) {
+function ChangesDetail({ changesDisplay, action }: { changesDisplay: Record<string, ChangeDisplay>; action: AuditAction }) {
+  if (!changesDisplay || Object.keys(changesDisplay).length === 0) {
     return <span className="text-xs text-gray-400">&mdash;</span>
   }
 
-  const entries = Object.entries(changes).filter(
-    ([key]) => !['updated_at', 'created_at', 'id', 'uuid'].includes(key)
-  )
+  const entries = Object.entries(changesDisplay)
 
   if (entries.length === 0) {
     return <span className="text-xs text-gray-400">&mdash;</span>
   }
 
   return (
-    <div className="space-y-1">
-      {entries.map(([field, data]) => {
-        const displayName = field.replace(/_/g, ' ')
+    <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+        <span className="text-xs font-medium text-gray-500">
+          {action === 'UPDATE' ? 'Field Changes' : action === 'CREATE' ? 'Initial Values' : 'Deleted Values'}
+          <span className="ml-2 text-gray-400">({entries.length} {entries.length === 1 ? 'field' : 'fields'})</span>
+        </span>
+      </div>
 
-        if (typeof data === 'object' && data !== null && 'old' in data && 'new' in data) {
-          const change = data as { old: unknown; new: unknown }
-          if (change.old === change.new) return null
+      {/* Change rows */}
+      <div className="divide-y divide-gray-100">
+        {entries.map(([field, change]) => {
+          const fieldLabel = change.field_display || field.replace(/_/g, ' ')
+
+          if (isUpdateChange(change)) {
+            const oldDisplay = change.old_display ?? 'empty'
+            const newDisplay = change.new_display ?? 'empty'
+            if (oldDisplay === newDisplay) return null
+            return (
+              <div key={field} className="px-4 py-2.5 flex items-center gap-3">
+                <span className="text-xs font-medium text-gray-500 capitalize w-[140px] shrink-0">{fieldLabel}</span>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span
+                    className="text-xs text-red-600/70 bg-red-50 px-2 py-1 rounded border border-red-100 line-through truncate max-w-[220px]"
+                    title={oldDisplay}
+                  >
+                    {oldDisplay}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                  <span
+                    className="text-xs text-green-700 bg-green-50 px-2 py-1 rounded border border-green-100 font-medium truncate max-w-[220px]"
+                    title={newDisplay}
+                  >
+                    {newDisplay}
+                  </span>
+                </div>
+              </div>
+            )
+          }
+
+          // CREATE/DELETE: single value
+          const displayVal = (change as ChangeDisplaySingle).display ?? 'empty'
           return (
-            <div key={field} className="flex items-center gap-1.5 text-xs">
-              <span className="text-gray-500 capitalize min-w-[90px]">{displayName}</span>
-              <span className="text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded line-through truncate max-w-[120px]">
-                {formatValue(change.old)}
-              </span>
-              <ArrowRight className="w-3 h-3 text-gray-300 shrink-0" />
-              <span className="text-gray-700 bg-blue-50 px-1.5 py-0.5 rounded font-medium truncate max-w-[120px]">
-                {formatValue(change.new)}
+            <div key={field} className="px-4 py-2.5 flex items-center gap-3">
+              <span className="text-xs font-medium text-gray-500 capitalize w-[140px] shrink-0">{fieldLabel}</span>
+              <span className="text-xs text-gray-700 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                {displayVal}
               </span>
             </div>
           )
-        }
-
-        return (
-          <div key={field} className="text-xs text-gray-500">
-            <span className="capitalize">{displayName}</span>: {formatValue(data)}
-          </div>
-        )
-      })}
+        })}
+      </div>
     </div>
   )
 }
 
 function AuditRow({ entry }: { entry: AuditLogEntry }) {
   const [expanded, setExpanded] = useState(false)
-  const changes = entry.changes || {}
-  const changeKeys = Object.keys(changes).filter(
-    k => !['updated_at', 'created_at', 'id', 'uuid'].includes(k)
-  )
+  const changesDisplay = entry.changes_display || {}
+  const changeKeys = Object.keys(changesDisplay)
   const hasChanges = changeKeys.length > 0
   const isBulk = changeKeys.length > 3
 
@@ -95,7 +108,7 @@ function AuditRow({ entry }: { entry: AuditLogEntry }) {
           ) : <span className="w-3.5 inline-block" />}
         </td>
         <td className="py-3">
-          <span className="text-xs text-gray-600">{formatTimestamp(entry.timestamp)}</span>
+          <span className="text-xs text-gray-600">{formatDateTime(entry.timestamp)}</span>
         </td>
         <td className="py-3">
           <span className="text-xs font-medium text-gray-900">{entry.user_name}</span>
@@ -119,14 +132,16 @@ function AuditRow({ entry }: { entry: AuditLogEntry }) {
           ) : isBulk ? (
             <span className="text-xs text-gray-500">{changeKeys.length} fields changed</span>
           ) : (
-            <span className="text-xs text-gray-500">{changeKeys.map(k => k.replace(/_/g, ' ')).join(', ')}</span>
+            <span className="text-xs text-gray-500">
+              {changeKeys.map(k => changesDisplay[k]?.field_display || k.replace(/_/g, ' ')).join(', ')}
+            </span>
           )}
         </td>
       </tr>
       {expanded && hasChanges && (
-        <tr className="bg-gray-50/70">
-          <td colSpan={6} className="px-10 py-3">
-            <ChangesDetail changes={changes} />
+        <tr className="bg-gray-50/50">
+          <td colSpan={6} className="pl-10 pr-6 py-4">
+            <ChangesDetail changesDisplay={changesDisplay} action={entry.action} />
           </td>
         </tr>
       )}

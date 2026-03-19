@@ -21,7 +21,7 @@ Rivo OS is a Lead Operating System that helps mortgage businesses convert leads 
 - **Goals:** Secure, compliant system with clear role boundaries and full traceability
 
 **Manager** — The Overseer
-- **Role:** Team lead overseeing Mortgage Specialists and Process Executives
+- **Role:** Team lead overseeing Mortgage Specialists and Process Owners
 - **Context:** Responsible for team performance, SLA compliance, workload distribution
 - **Pain Points:** No visibility into team workload, manual case reassignment, missed SLAs
 - **Goals:** Real-time team performance visibility, balanced workloads, SLA adherence
@@ -32,7 +32,7 @@ Rivo OS is a Lead Operating System that helps mortgage businesses convert leads 
 - **Pain Points:** Scattered client information, manual eligibility calculations, missed follow-ups
 - **Goals:** Close more deals faster with clear next actions and automated eligibility assessment
 
-**Process Executive (PE)** — The Controller
+**Process Owner (PO)** — The Controller
 - **Role:** Operations professional managing bank submissions and case progression
 - **Context:** Handles case documentation, bank communication, stage tracking
 - **Pain Points:** Manual stage tracking, unclear case status, document management chaos
@@ -71,7 +71,7 @@ Most CRMs treat leads, clients, and deals as the same entity or lack clear conve
 ### Case
 - **Definition:** Active bank application for a specific property
 - **Lifecycle:** Per transaction — ends in terminal state (approved, declined, withdrawn)
-- **Owner:** Process Executive
+- **Owner:** Process Owner
 - **Key Actions:** Lock deal details, submit to bank, track stages, close
 
 ## Differentiators
@@ -98,7 +98,7 @@ Unlike systems with editable histories, every state change is logged immutably w
 
 ### Workflow Features
 - **MS Dashboard:** Assigned clients with SLA timers, filters, and quick actions for closers
-- **PO Dashboard:** Kanban board with case stages, SLA health, and progression controls
+- **Process Owner Dashboard:** Kanban board with case stages, SLA health, and progression controls
 - **Manager Dashboard:** Team workload visibility, SLA monitoring, and case reassignment
 - **Notes & Activity:** Unified timeline with general notes and quick actions per entity
 

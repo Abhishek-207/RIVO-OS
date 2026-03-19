@@ -5,15 +5,15 @@ from django.db import migrations
 
 def migrate_roles(apps, schema_editor):
     User = apps.get_model('users', 'User')
-    # Rename process_executive -> process_officer
-    User.objects.filter(role='process_executive').update(role='process_officer')
+    # Rename process_owner -> process_owner
+    User.objects.filter(role='process_owner').update(role='process_owner')
     # Convert manager -> channel_owner
     User.objects.filter(role='manager').update(role='channel_owner')
 
 
 def reverse_migrate_roles(apps, schema_editor):
     User = apps.get_model('users', 'User')
-    User.objects.filter(role='process_officer').update(role='process_executive')
+    User.objects.filter(role='process_owner').update(role='process_owner')
     User.objects.filter(role='channel_owner').update(role='manager')
 
 

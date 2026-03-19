@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Trash2, Search } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { cn } from '@/lib/utils'
+import { formatRelativeDate } from '@/lib/dateUtils'
 import { Pagination } from '@/components/Pagination'
 import { TablePageLayout, TableCard, TableContainer, PageLoading, PageError, StatusErrorToast } from '@/components/ui/TablePageLayout'
 import {
@@ -74,18 +75,6 @@ export function TemplateList() {
     }
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-  }
 
   const getTriggerLabel = (template: MessageTemplate) => {
     if (template.category !== 'system' || !template.trigger_value) return null
@@ -208,7 +197,7 @@ export function TemplateList() {
                       )}
                     </td>
                     <td className="py-3">
-                      <span className="text-xs text-gray-500">{formatDate(template.updated_at)}</span>
+                      <span className="text-xs text-gray-500">{formatRelativeDate(template.updated_at)}</span>
                     </td>
                     <td className="py-3 text-right">
                       <button

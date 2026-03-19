@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'channel_owner' | 'team_leader' | 'mortgage_specialist' | 'process_officer'
+export type UserRole = 'admin' | 'channel_owner' | 'team_leader' | 'mortgage_specialist' | 'process_owner'
 
 export type Resource = 'leads' | 'clients' | 'cases' | 'users' | 'channels' | 'templates' | 'bank_products' | 'audit_logs'
 

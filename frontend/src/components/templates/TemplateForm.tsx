@@ -17,6 +17,7 @@ import {
   type MessageTemplate,
 } from '@/hooks/useMessageTemplates'
 import { TEMPLATE_VARIABLES, previewTemplateWithSampleData } from '@/utils/templateVariables'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 
 interface TemplateFormProps {
   template?: MessageTemplate | null
@@ -247,21 +248,19 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
                     Loading templates from YCloud...
                   </div>
                 ) : (
-                  <select
+                  <SearchableSelect
                     value={ycloudTemplateName}
-                    onChange={(e) => {
-                      setYcloudTemplateName(e.target.value)
+                    onChange={(val) => {
+                      setYcloudTemplateName(val)
                       setVariableMapping({})
                     }}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-                  >
-                    <option value="">Select approved template...</option>
-                    {ycloudTemplates?.map((t) => (
-                      <option key={t.name} value={t.name}>
-                        {t.name} ({t.language})
-                      </option>
-                    ))}
-                  </select>
+                    options={(ycloudTemplates || []).map(t => ({
+                      value: t.name,
+                      label: `${t.name} (${t.language})`,
+                    }))}
+                    placeholder="Select approved template..."
+                    searchPlaceholder="Search template..."
+                  />
                 )}
                 {ycloudTemplates && ycloudTemplates.length === 0 && (
                   <p className="text-[10px] text-amber-600 mt-1">No approved templates found in YCloud. Create and get templates approved in YCloud first.</p>
@@ -290,16 +289,13 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     When {triggerType === 'case_stage' ? 'Stage' : 'Status'} Changes To <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={triggerValue}
-                    onChange={(e) => setTriggerValue(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-                  >
-                    <option value="">Select {triggerType === 'case_stage' ? 'stage' : 'status'}...</option>
-                    {triggerValueOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
+                    onChange={setTriggerValue}
+                    options={triggerValueOptions.map(opt => ({ value: opt.value, label: opt.label }))}
+                    placeholder={`Select ${triggerType === 'case_stage' ? 'stage' : 'status'}...`}
+                    searchPlaceholder="Search..."
+                  />
                 </div>
               )}
 
@@ -316,18 +312,19 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
                     {Array.from({ length: ycloudVarCount }, (_, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <span className="text-xs text-gray-500 w-12 flex-shrink-0">{`{{${i + 1}}}`}</span>
-                        <select
-                          value={variableMapping[String(i + 1)] || ''}
-                          onChange={(e) => updateVariableMapping(String(i + 1), e.target.value)}
-                          className="flex-1 h-8 px-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-                        >
-                          <option value="">Select variable...</option>
-                          {TEMPLATE_VARIABLES.map(v => (
-                            <option key={v.name} value={v.name}>
-                              {`{${v.name}}`} — {v.description}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="flex-1">
+                          <SearchableSelect
+                            value={variableMapping[String(i + 1)] || ''}
+                            onChange={(val) => updateVariableMapping(String(i + 1), val)}
+                            options={TEMPLATE_VARIABLES.map(v => ({
+                              value: v.name,
+                              label: `{${v.name}} — ${v.description}`,
+                            }))}
+                            placeholder="Select variable..."
+                            searchPlaceholder="Search variable..."
+                            size="sm"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>

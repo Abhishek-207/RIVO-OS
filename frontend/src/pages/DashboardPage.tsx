@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/TablePageLayout'
 import { cn } from '@/lib/utils'
 import { formatCurrencyAED } from '@/lib/formatters'
+import { formatRelativeDate, formatTime } from '@/lib/dateUtils'
 import type { NotableType } from '@/types/audit'
 import type { AnalyticsBreakdownRow } from '@/types/analytics'
 import type { CaseStage } from '@/types/mortgage'
@@ -302,20 +303,9 @@ function RemindersDashboard() {
     completeMutation.mutate(id)
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    const today = new Date()
-    if (date.toDateString() === today.toDateString()) return 'Today'
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }
-
-  const formatTime = (timeStr: string | null) => {
+  const formatReminderTime = (timeStr: string | null) => {
     if (!timeStr) return ''
-    const [hours, minutes] = timeStr.split(':')
-    const hour = parseInt(hours, 10)
-    const ampm = hour >= 12 ? 'PM' : 'AM'
-    const hour12 = hour % 12 || 12
-    return ` at ${hour12}:${minutes} ${ampm}`
+    return ` at ${formatTime(timeStr)}`
   }
 
   if (isLoading) return <PageLoading />
@@ -366,7 +356,7 @@ function RemindersDashboard() {
                   </td>
                   <td className="py-3">
                     <span className={cn('text-xs', reminder.is_overdue ? 'text-red-600' : 'text-gray-500')}>
-                      {formatDate(reminder.reminder_date)}{formatTime(reminder.reminder_time)}
+                      {formatRelativeDate(reminder.reminder_date)}{formatReminderTime(reminder.reminder_time)}
                       {reminder.is_overdue && ' \u2022 Overdue'}
                     </span>
                   </td>
