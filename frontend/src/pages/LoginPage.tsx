@@ -3,11 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 
+const SESSION_EXPIRED_KEY = 'rivo-session-expired'
+
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [sessionExpired] = useState(() => {
+    const expired = localStorage.getItem(SESSION_EXPIRED_KEY) === '1'
+    if (expired) localStorage.removeItem(SESSION_EXPIRED_KEY)
+    return expired
+  })
   const { login, isLoading } = useAuth()
   const navigate = useNavigate()
 
@@ -42,6 +49,13 @@ export function LoginPage() {
               Sign in to your account to continue
             </p>
           </div>
+
+          {/* Session Expired Notice */}
+          {sessionExpired && !error && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+              Your session has expired. Please sign in again to continue.
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

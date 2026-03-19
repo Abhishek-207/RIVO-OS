@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { User, AuthContextType, Permissions, Resource, LoginResponse } from '@/types/auth'
 import { API_BASE_URL } from '@/config/api'
@@ -50,8 +50,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = useCallback(async (username: string, password: string) => {
     setIsLoading(true)
-    // Clear any cached data from previous user session
+    // Clear all cached data (in-memory + persisted) from previous user session
     queryClient.clear()
+    localStorage.removeItem('rivo-query-cache')
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -84,8 +85,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null)
     setPermissions(null)
     localStorage.removeItem(AUTH_KEY)
-    // Clear all cached data to prevent stale data from previous user
+    // Clear all cached data (in-memory + persisted) to prevent stale data from previous user
     queryClient.clear()
+    localStorage.removeItem('rivo-query-cache')
   }, [queryClient])
 
   const refreshUser = useCallback(async () => {
@@ -113,6 +115,42 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Silently fail - user data will refresh on next login
     }
   }, [])
+
+  // Cross-tab sync: log out this tab when another tab changes the auth session
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key !== AUTH_KEY) return
+
+      if (!e.newValue) {
+        // Another tab logged out — clear this tab too
+        setUser(null)
+        setPermissions(null)
+        queryClient.cancelQueries()
+        queryClient.clear()
+        return
+      }
+
+      try {
+        const newAuth: StoredAuth = JSON.parse(e.newValue)
+        const currentUserId = user?.id
+        if (newAuth.user?.id !== currentUserId) {
+          // Different user logged in from another tab — force logout this tab
+          // so it redirects to login and doesn't make requests with a mismatched session
+          setUser(null)
+          setPermissions(null)
+          queryClient.cancelQueries()
+          queryClient.clear()
+        }
+      } catch {
+        // Corrupted auth data — log out to be safe
+        setUser(null)
+        setPermissions(null)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [user?.id, queryClient])
 
   const can = useCallback((action: 'view' | 'create' | 'update' | 'delete', resource: Resource): boolean => {
     if (!permissions) return false
