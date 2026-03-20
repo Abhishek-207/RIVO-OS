@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { LayoutProvider } from '@/contexts/LayoutContext'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { LoginPage } from '@/pages/LoginPage'
+import { SetPasswordPage } from '@/pages/SetPasswordPage'
 import { UsersPage } from '@/pages/UsersPage'
 import { ChannelsPage } from '@/pages/ChannelsPage'
 import { LeadsPage } from '@/pages/LeadsPage'
@@ -64,6 +65,7 @@ function AppRoutes() {
           isAuthenticated ? <Navigate to={getDefaultRoute()} replace /> : <LoginPage />
         }
       />
+      <Route path="/set-password" element={<SetPasswordPage />} />
 
       {/* Protected routes */}
       <Route

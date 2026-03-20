@@ -11,45 +11,23 @@ from users.models import User, UserRole
 
 
 class UserListSerializer(serializers.ModelSerializer):
-    """
-    Serializer for listing users.
-
-    Returns: id, username, email, name, role, is_active
-    """
+    """Serializer for listing users."""
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'phone', 'role', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'username', 'email', 'name', 'phone', 'role', 'is_active', 'is_verified', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
-class UserCreateSerializer(serializers.ModelSerializer):
+class UserCreateSerializer(serializers.Serializer):
+    """Serializer for creating users via admin invite flow.
+
+    Accepts: name, email, role
+    Username is auto-generated from name. No password required.
     """
-    Serializer for creating users.
-
-    Accepts: username, email, name, role, password, phone
-    Password is stored as hash for local auth or used to create Supabase Auth user.
-    """
-    username = serializers.CharField(
-        max_length=50,
-        required=False,
-        help_text='Username for login (auto-generated from email if not provided)'
-    )
-    password = serializers.CharField(
-        write_only=True,
-        min_length=6,
-        help_text='Initial password for the user (min 6 characters)'
-    )
-
-    class Meta:
-        model = User
-        fields = ['username', 'email', 'name', 'phone', 'role', 'password']
-
-    def validate_username(self, value: str) -> str:
-        """Validate username uniqueness."""
-        if value and User.objects.filter(username__iexact=value).exists():
-            raise serializers.ValidationError('A user with this username already exists.')
-        return value.lower() if value else value
+    name = serializers.CharField(max_length=255)
+    email = serializers.EmailField(max_length=255)
+    role = serializers.ChoiceField(choices=UserRole.choices)
 
     def validate_email(self, value: str) -> str:
         """Validate email uniqueness."""
@@ -67,11 +45,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for updating users.
-
-    Only name and role can be updated. Email is read-only after creation.
-    """
+    """Serializer for updating users. Only name, phone, and role can be updated."""
 
     class Meta:
         model = User
@@ -87,22 +61,38 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
 
 class UserDetailSerializer(serializers.ModelSerializer):
-    """
-    Serializer for user detail view.
-
-    Returns all user fields except supabase_auth_id and password_hash.
-    """
+    """Serializer for user detail view."""
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'name', 'phone', 'role', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'username', 'email', 'name', 'phone', 'role', 'is_active', 'is_verified', 'created_at', 'updated_at']
         read_only_fields = ['id', 'username', 'email', 'created_at', 'updated_at']
 
 
 class LoginSerializer(serializers.Serializer):
-    """Serializer for login requests."""
-    username = serializers.CharField(max_length=50, help_text='Username for login')
+    """Serializer for login requests. Accepts email or username."""
+    identifier = serializers.CharField(
+        max_length=255,
+        help_text='Email or username for login'
+    )
     password = serializers.CharField(max_length=255)
+
+
+class SetPasswordSerializer(serializers.Serializer):
+    """Serializer for setting password via invite token."""
+    token = serializers.CharField(max_length=200)
+    password = serializers.CharField(min_length=8, max_length=255)
+    confirm_password = serializers.CharField(min_length=8, max_length=255)
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({'confirm_password': 'Passwords do not match.'})
+        return attrs
+
+
+class ResendInviteSerializer(serializers.Serializer):
+    """Serializer for resending invite email."""
+    email = serializers.EmailField(max_length=255)
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -114,7 +104,7 @@ class ChangePasswordSerializer(serializers.Serializer):
     )
     new_password = serializers.CharField(
         max_length=255,
-        min_length=6,
+        min_length=8,
         write_only=True,
-        help_text='New password (min 6 characters)'
+        help_text='New password (min 8 characters)'
     )

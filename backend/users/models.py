@@ -2,14 +2,18 @@
 User model for Rivo OS Identity & Access Management.
 
 This module defines the User model with role-based access control.
-Supports both Supabase Auth and local SQLite authentication.
+Supports secure email-based invitation and password setup flow.
 """
 
 import uuid
+import secrets
 import hashlib
+import bcrypt
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
 from django.db import models
+from django.utils import timezone
+from datetime import timedelta
 
 
 class UserRole(models.TextChoices):
@@ -33,8 +37,8 @@ class User(models.Model):
     """
     User model for Rivo OS.
 
-    Users authenticate via Supabase Auth using email and password.
-    The supabase_auth_id links to the Supabase Auth user record.
+    Users are created by admins with email invitations.
+    Each user must set their own password via a secure token link.
     """
 
     id = models.UUIDField(
@@ -54,14 +58,14 @@ class User(models.Model):
     username = models.CharField(
         unique=True,
         max_length=50,
-        help_text='Username for login'
+        help_text='Username for login (auto-generated from name)'
     )
 
     email = models.EmailField(
         unique=True,
         max_length=255,
         validators=[EmailValidator(message='Enter a valid email address.')],
-        help_text='User email address'
+        help_text='User email address (unique, required)'
     )
 
     phone = models.CharField(
@@ -77,10 +81,10 @@ class User(models.Model):
     )
 
     password_hash = models.CharField(
-        max_length=64,
+        max_length=128,
         blank=True,
         default='',
-        help_text='SHA256 hash of password for local auth'
+        help_text='Bcrypt hash of password'
     )
 
     role = models.CharField(
@@ -92,6 +96,30 @@ class User(models.Model):
     is_active = models.BooleanField(
         default=True,
         help_text='Whether the user can log in (soft delete mechanism)'
+    )
+
+    is_verified = models.BooleanField(
+        default=False,
+        help_text='Whether the user has set their password via email invite'
+    )
+
+    invite_token_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='SHA256 hash of invite token for password setup'
+    )
+
+    invite_token_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Expiry timestamp for the invite token (24 hours from creation)'
+    )
+
+    invite_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp when the invite email was last sent'
     )
 
     created_at = models.DateTimeField(
@@ -126,7 +154,6 @@ class User(models.Model):
 
     def save(self, *args, **kwargs) -> None:
         """Run full clean before saving."""
-        # Normalize username to lowercase for consistent lookups
         if self.username:
             self.username = self.username.lower().strip()
         self.full_clean()
@@ -148,9 +175,61 @@ class User(models.Model):
         return self.role == UserRole.TEAM_LEADER
 
     def set_password(self, password: str) -> None:
-        """Hash and set the password."""
-        self.password_hash = hashlib.sha256(password.encode()).hexdigest()
+        """Hash and set the password using bcrypt."""
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        self.password_hash = bcrypt.hashpw(password_bytes, salt).decode('utf-8')
 
     def check_password(self, password: str) -> bool:
-        """Verify password against stored hash."""
-        return self.password_hash == hashlib.sha256(password.encode()).hexdigest()
+        """Verify password against stored bcrypt hash."""
+        if not self.password_hash:
+            return False
+        try:
+            return bcrypt.checkpw(
+                password.encode('utf-8'),
+                self.password_hash.encode('utf-8')
+            )
+        except (ValueError, TypeError):
+            return False
+
+    def generate_invite_token(self) -> str:
+        """Generate a secure invite token and store its hash. Returns the raw token."""
+        raw_token = secrets.token_urlsafe(48)
+        self.invite_token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        self.invite_token_expires_at = timezone.now() + timedelta(hours=24)
+        self.invite_sent_at = timezone.now()
+        return raw_token
+
+    def verify_invite_token(self, raw_token: str) -> bool:
+        """Verify that a raw token matches the stored hash and hasn't expired."""
+        if not self.invite_token_hash or not self.invite_token_expires_at:
+            return False
+        if timezone.now() > self.invite_token_expires_at:
+            return False
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+        return secrets.compare_digest(self.invite_token_hash, token_hash)
+
+    def invalidate_invite_token(self) -> None:
+        """Invalidate the current invite token after use."""
+        self.invite_token_hash = ''
+        self.invite_token_expires_at = None
+
+    @staticmethod
+    def generate_unique_username(full_name: str) -> str:
+        """Generate a unique username from full name.
+
+        Takes first word, lowercases, removes special chars.
+        Appends number if not unique (abhishek, abhishek1, abhishek2...).
+        """
+        import re
+        base = full_name.split()[0].lower() if full_name.strip() else 'user'
+        base = re.sub(r'[^a-z0-9]', '', base)
+        if not base:
+            base = 'user'
+
+        username = base
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f'{base}{counter}'
+            counter += 1
+        return username

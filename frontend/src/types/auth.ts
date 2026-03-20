@@ -31,7 +31,7 @@ export interface AuthContextType {
   permissions: Permissions | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (username: string, password: string) => Promise<void>
+  login: (identifier: string, password: string) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
   can: (action: 'view' | 'create' | 'update' | 'delete', resource: Resource) => boolean

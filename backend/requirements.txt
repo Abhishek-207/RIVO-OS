@@ -60,3 +60,4 @@ psycopg2-binary==2.9.10
 gunicorn==23.0.0
 channels==4.0.0
 daphne==4.1.0
+bcrypt==4.2.1

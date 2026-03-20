@@ -15,6 +15,7 @@ export interface UserData {
   phone: string
   role: UserRole
   is_active: boolean
+  is_verified: boolean
   created_at: string
   updated_at: string
 }
@@ -35,12 +36,9 @@ export interface UsersQueryParams {
 }
 
 export interface CreateUserData {
-  username?: string
-  email: string
   name: string
-  phone?: string
+  email: string
   role: string
-  password: string
 }
 
 export interface UpdateUserData {
@@ -82,7 +80,7 @@ export function useUser(id: string) {
 }
 
 /**
- * Hook for creating a new user.
+ * Hook for creating a new user (sends invite email).
  */
 export function useCreateUser() {
   const queryClient = useQueryClient()
@@ -142,15 +140,20 @@ export function useReactivateUser() {
 }
 
 /**
- * Hook for resetting a user's password (admin only).
+ * Hook for resending invite email to a user (admin action).
  */
-export function useResetPassword() {
+export function useResendInvite() {
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: ({ id, newPassword }: { id: string; newPassword: string }) =>
+    mutationFn: (id: string) =>
       withApiError(
-        () => api.post<{ message: string }>(`/users/${id}/reset_password/`, { new_password: newPassword }),
-        'Failed to reset password',
+        () => api.post<{ message: string; invite_sent: boolean }>(`/users/${id}/resend_invite/`),
+        'Failed to resend invite',
       ),
+    onSuccess: () => {
+      queryClient.refetchQueries({ queryKey: ['users'] })
+    },
   })
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, X, Loader2, Key, Eye, EyeOff, Check } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   useUsers,
@@ -7,7 +7,6 @@ import {
   type UserData,
 } from '@/hooks/useUsers'
 import type { UserRole } from '@/types/auth'
-import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { UserSidePanel } from '@/components/UserSidePanel'
 import { Pagination } from '@/components/Pagination'
@@ -55,7 +54,6 @@ const PAGE_SIZE = 10
 
 export function UsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
-  const [showSystemPasswordModal, setShowSystemPasswordModal] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<UserData | null>(null)
   const [searchInput, setSearchInput] = useState('')
@@ -74,7 +72,7 @@ export function UsersPage() {
 
   const { data, isLoading, error } = useUsers({
     page: 1,
-    page_size: 100, // Get more users for client-side filtering
+    page_size: 100,
     search: searchQuery,
     status: statusFilter,
   })
@@ -113,22 +111,13 @@ export function UsersPage() {
             <h1 className="text-sm font-semibold text-gray-900">Users & Roles</h1>
             <p className="text-xs text-gray-500 mt-0.5">Manage system users and their permissions</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSystemPasswordModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-xs"
-            >
-              <Key className="h-3.5 w-3.5" />
-              System Password
-            </button>
-            <button
-              onClick={() => setSelectedUserId('new')}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#1e3a5f] hover:bg-[#0f2744] rounded-lg transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              New User
-            </button>
-          </div>
+          <button
+            onClick={() => setSelectedUserId('new')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#1e3a5f] hover:bg-[#0f2744] rounded-lg transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New User
+          </button>
         </div>
 
         {/* Search, Status Tabs and Role Filter */}
@@ -172,10 +161,10 @@ export function UsersPage() {
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                <th className="text-left pb-3 pl-6 text-xs font-medium text-gray-400 uppercase tracking-wider">Username</th>
+                <th className="text-left pb-3 pl-6 text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
                 <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Role</th>
                 <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="w-44 text-right pb-3 pr-4 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="w-20 text-right pb-3 pr-4 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -190,11 +179,14 @@ export function UsersPage() {
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium text-white ${getAvatarColor(user.id)}`}>
                         {user.name.slice(0, 2).toUpperCase()}
                       </div>
-                      <span className="text-xs font-medium text-gray-900">{user.name}</span>
+                      <div>
+                        <span className="text-xs font-medium text-gray-900 block">{user.name}</span>
+                        <span className="text-xs text-gray-400">@{user.username}</span>
+                      </div>
                     </div>
                   </td>
                   <td className="py-3 pl-6">
-                    <span className="text-xs text-gray-600">{user.username}</span>
+                    <span className="text-xs text-gray-600">{user.email}</span>
                   </td>
                   <td className="py-3">
                     <span className={cn('px-2 py-0.5 text-xs font-medium rounded', roleColors[user.role])}>
@@ -202,18 +194,23 @@ export function UsersPage() {
                     </span>
                   </td>
                   <td className="py-3">
-                    <span className={cn(
-                      'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full',
-                      user.is_active
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-gray-100 text-gray-500'
-                    )}>
+                    <div className="flex flex-col gap-0.5">
                       <span className={cn(
-                        'h-1.5 w-1.5 rounded-full',
-                        user.is_active ? 'bg-emerald-500' : 'bg-gray-400'
-                      )} />
-                      {user.is_active ? 'Active' : 'Inactive'}
-                    </span>
+                        'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full w-fit',
+                        user.is_active
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-gray-100 text-gray-500'
+                      )}>
+                        <span className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          user.is_active ? 'bg-emerald-500' : 'bg-gray-400'
+                        )} />
+                        {user.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                      {!user.is_verified && (
+                        <span className="text-xs text-amber-600">Pending invite</span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 text-right pr-4">
                     <button
@@ -242,11 +239,6 @@ export function UsersPage() {
         />
       </TableCard>
 
-      {/* System Password Modal */}
-      {showSystemPasswordModal && (
-        <SystemPasswordModal onClose={() => setShowSystemPasswordModal(false)} />
-      )}
-
       {/* User Side Panel */}
       {selectedUserId && (
         <UserSidePanel
@@ -264,138 +256,5 @@ export function UsersPage() {
         onCancel={() => setPendingDelete(null)}
       />
     </TablePageLayout>
-  )
-}
-
-function SystemPasswordModal({ onClose }: { onClose: () => void }) {
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-
-    if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters')
-      return
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      await api.post('/auth/reset-all-passwords', { new_password: newPassword })
-      setSuccess(true)
-      setTimeout(() => onClose(), 1500)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reset passwords')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/20 z-50" onClick={onClose} />
-      <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[360px] bg-white z-50 shadow-xl rounded-xl">
-        <div className="h-12 flex items-center justify-between px-4 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">System Password</h2>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="p-4">
-          {success ? (
-            <div className="text-center py-4">
-              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
-                <Check className="h-5 w-5 text-green-600" />
-              </div>
-              <p className="text-sm font-medium text-gray-900">Password Updated</p>
-              <p className="text-xs text-gray-500 mt-0.5">System password changed for all users</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="p-2.5 bg-amber-50 border border-amber-100 rounded-lg">
-                <p className="text-xs text-amber-700">This password is shared by all users.</p>
-              </div>
-
-              {error && (
-                <div className="p-2 bg-red-50 border border-red-100 rounded-lg text-red-600 text-xs">{error}</div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">New Password</label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter new password"
-                    className="w-full h-8 px-3 pr-9 text-xs border border-gray-200 rounded-lg focus:outline-none"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Confirm Password</label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm new password"
-                    className="w-full h-8 px-3 pr-9 text-xs border border-gray-200 rounded-lg focus:outline-none"
-                    required
-                    minLength={6}
-                    autoComplete="new-password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full px-4 py-2 text-xs bg-[#1e3a5f] text-white rounded-lg hover:bg-[#0f2744] transition-colors font-medium disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    Updating...
-                  </span>
-                ) : (
-                  'Update System Password'
-                )}
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
-    </>
   )
 }

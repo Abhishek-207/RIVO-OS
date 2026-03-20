@@ -49,7 +49,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const [isLoading, setIsLoading] = useState(false)
 
-  const login = useCallback(async (username: string, password: string) => {
+  const login = useCallback(async (identifier: string, password: string) => {
     setIsLoading(true)
     // Clear all cached data (in-memory + persisted) from previous user session
     queryClient.clear()
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ identifier, password }),
       })
 
       if (!response.ok) {

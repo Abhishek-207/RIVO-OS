@@ -7,9 +7,10 @@ const SESSION_EXPIRED_KEY = 'rivo-session-expired'
 
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const [username, setUsername] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [passwordNotSet, setPasswordNotSet] = useState(false)
   const [sessionExpired] = useState(() => {
     const expired = localStorage.getItem(SESSION_EXPIRED_KEY) === '1'
     if (expired) localStorage.removeItem(SESSION_EXPIRED_KEY)
@@ -21,12 +22,19 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setPasswordNotSet(false)
 
     try {
-      await login(username, password)
+      await login(identifier, password)
       navigate('/')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid username or password')
+      const message = err instanceof Error ? err.message : 'Invalid credentials'
+      if (message.includes('set your password') || message.includes('PASSWORD_NOT_SET')) {
+        setPasswordNotSet(true)
+        setError('Please set your password via the email invite link before logging in.')
+      } else {
+        setError(message)
+      }
     }
   }
 
@@ -60,22 +68,27 @@ export function LoginPage() {
           {/* Error Message */}
           {error && (
             <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm">
-              {error}
+              <p>{error}</p>
+              {passwordNotSet && (
+                <p className="text-xs mt-2 text-red-500">
+                  Check your email for the invitation link, or contact your admin to resend it.
+                </p>
+              )}
             </div>
           )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Username
+              <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Email or Username
               </label>
               <input
-                id="username"
+                id="identifier"
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter your username"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Enter your email or username"
                 className="w-full h-11 px-4 bg-gray-50 border border-gray-200 rounded-lg text-gray-900
                          placeholder:text-gray-400 focus:outline-none focus:bg-white transition-all"
                 required
@@ -102,7 +115,7 @@ export function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
                 </button>
               </div>
             </div>
