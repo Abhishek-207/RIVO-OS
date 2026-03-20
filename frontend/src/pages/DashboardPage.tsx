@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Loader2, Building2 } from 'lucide-react'
+import { Check, Loader2, Building2, ArrowUpRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useDashboardReminders, useCompleteReminder } from '@/hooks/useAudit'
@@ -13,6 +13,8 @@ import {
   TableContainer,
   PageLoading,
 } from '@/components/ui/TablePageLayout'
+import { DateInput } from '@/components/ui/DateInput'
+import { Skeleton, TableRowsSkeleton } from '@/components/ui/Skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrencyAED } from '@/lib/formatters'
 import { formatRelativeDate, formatTime } from '@/lib/dateUtils'
@@ -67,13 +69,16 @@ function KPICard({ label, value, sub, alert, onClick }: {
     <Wrapper
       onClick={onClick}
       className={cn(
-        'bg-white border border-gray-100 rounded-xl p-4 text-left',
-        onClick && 'hover:bg-gray-50/50 transition-colors cursor-pointer'
+        'bg-white border rounded-xl p-4 text-left relative transition-colors',
+        onClick
+          ? 'border-gray-100 cursor-pointer hover:border-[#1e3a5f] group'
+          : 'border-gray-100'
       )}
     >
+      {onClick && <ArrowUpRight className="absolute top-3 right-3 h-3.5 w-3.5 text-[#1e3a5f]" />}
       <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{label}</div>
       <div className={cn('text-lg font-semibold', alert ? 'text-red-600' : 'text-gray-900')}>{value}</div>
-      {sub && <div className={cn('text-xs mt-0.5', alert ? 'text-red-400' : 'text-gray-400')}>{sub}</div>}
+      <div className={cn('text-xs mt-0.5 min-h-[16px]', alert ? 'text-red-400' : 'text-gray-400')}>{sub || '\u00A0'}</div>
     </Wrapper>
   )
 }
@@ -101,8 +106,6 @@ function formatMinutes(mins: number | null | undefined): string {
 }
 
 function ChannelTable({ rows, onRowClick }: { rows: AnalyticsBreakdownRow[]; onRowClick: (row: AnalyticsBreakdownRow) => void }) {
-  if (!rows.length) return null
-
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -138,8 +141,6 @@ function ChannelTable({ rows, onRowClick }: { rows: AnalyticsBreakdownRow[]; onR
 }
 
 function SourceTable({ rows, onRowClick }: { rows: AnalyticsBreakdownRow[]; onRowClick: (row: AnalyticsBreakdownRow) => void }) {
-  if (!rows.length) return null
-
   const hasLeads = rows.some((r) => r.leads_count > 0)
 
   return (
@@ -185,8 +186,6 @@ function AnalyticsDashboard() {
 
   const { data, isLoading } = useAnalyticsDashboard(dateRange.start, dateRange.end)
 
-  if (isLoading) return <PageLoading />
-
   const o = data?.overall
 
   return (
@@ -200,23 +199,32 @@ function AnalyticsDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <input
-              type="date"
+            <DateInput
               value={dateRange.start}
-              onChange={(e) => setDateRange((r) => ({ ...r, start: e.target.value }))}
-              className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
+              onChange={(val) => setDateRange((r) => ({ ...r, start: val }))}
+              size="sm"
             />
             <span className="text-xs text-gray-400">to</span>
-            <input
-              type="date"
+            <DateInput
               value={dateRange.end}
-              onChange={(e) => setDateRange((r) => ({ ...r, end: e.target.value }))}
-              className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
+              onChange={(val) => setDateRange((r) => ({ ...r, end: val }))}
+              size="sm"
             />
           </div>
         </div>
 
-        {o && (
+        {/* KPI Cards — shimmer when loading */}
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="bg-white border border-gray-100 rounded-xl p-4">
+                <Skeleton className="h-3 w-24 mb-2" />
+                <Skeleton className={cn('h-6', i < 4 ? 'w-32' : 'w-16')} />
+                <Skeleton className="h-3 w-20 mt-1.5" />
+              </div>
+            ))}
+          </div>
+        ) : o && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
             <KPICard
               label="Disbursed"
@@ -224,18 +232,23 @@ function AnalyticsDashboard() {
               sub={`${o.loans_count} loans`}
               onClick={() => navigate(`/cases?stage=disbursed&start_date=${dateRange.start}&end_date=${dateRange.end}`)}
             />
-            <KPICard label="Revenue" value={formatCurrencyAED(o.revenue)} />
+            <KPICard label="Revenue" value={formatCurrencyAED(o.revenue)} sub={`from ${o.loans_count} deals`} />
             <KPICard
               label="Conversion"
               value={o.total_leads > 0 ? `${((o.loans_count / o.total_leads) * 100).toFixed(1)}%` : '0%'}
               sub={`${o.loans_count} of ${o.total_leads} leads`}
             />
-            <KPICard label="SLA Breaches" value={o.sla_breaches} alert={o.sla_breaches > 0} />
+            <KPICard label="SLA Breaches" value={o.sla_breaches} alert={o.sla_breaches > 0} sub={o.sla_breaches > 0 ? 'needs attention' : 'all clear'} />
             {data.pipeline && (
               <>
-                <KPICard label="Active Leads" value={data.pipeline.active_leads} onClick={() => navigate('/leads?status=active')} />
-                <KPICard label="Active Clients" value={data.pipeline.active_clients} onClick={() => navigate('/clients?status=active')} />
-                <KPICard label="Active Cases" value={data.pipeline.active_cases} onClick={() => navigate('/cases')} />
+                <KPICard label="Active Leads" value={data.pipeline.active_leads} onClick={() => navigate('/leads?status=active')} sub={`of ${o.total_leads} total`} />
+                <KPICard label="Active Clients" value={data.pipeline.active_clients} onClick={() => navigate('/clients?status=active')} sub={`of ${o.total_clients} total`} />
+                <KPICard label="Active Cases" value={data.pipeline.active_cases} onClick={() => navigate('/cases')} sub={`of ${o.total_cases} total`} />
+                <KPICard
+                  label={data.breakdown_type === 'source' ? 'Active Sources' : 'Active Channels'}
+                  value={data.breakdown.filter(r => r.leads_count > 0 || r.clients_count > 0).length}
+                  sub={`of ${data.breakdown.length} total`}
+                />
               </>
             )}
           </div>
@@ -243,7 +256,19 @@ function AnalyticsDashboard() {
       </div>
 
       {/* Stage pipeline */}
-      {o && data.stage_funnel && data.stage_funnel.length > 0 && (
+      {isLoading ? (
+        <div className="mx-6 mb-4 bg-white border border-gray-100 rounded-xl p-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[20, 28, 24, 32, 22, 26, 20, 28, 24, 22].map((w, i) => (
+              <Skeleton key={i} className="h-7 rounded-full" style={{ width: `${w * 4}px` }} />
+            ))}
+          </div>
+        </div>
+      ) : o && data.stage_funnel && data.stage_funnel.length > 0 && (
         <div className="mx-6 mb-4 bg-white border border-gray-100 rounded-xl p-4">
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Case Pipeline</span>
@@ -267,8 +292,39 @@ function AnalyticsDashboard() {
         </div>
       )}
 
-      {/* Breakdown table */}
-      {o && (
+      {/* Breakdown table — shimmer rows when loading */}
+      {isLoading ? (
+        <TableCard>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <TH align="left">Channel</TH>
+                  <TH>Leads</TH>
+                  <TH>Clients</TH>
+                  <TH>Cases</TH>
+                  <TH>Spend</TH>
+                  <TH>Disbursed</TH>
+                  <TH>CPL</TH>
+                  <TH>Breaches</TH>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, rowIdx) => (
+                  <tr key={rowIdx} className="border-b border-gray-50">
+                    <td className="py-3 px-4"><Skeleton className="h-3.5 w-24" /></td>
+                    {Array.from({ length: 7 }).map((_, colIdx) => (
+                      <td key={colIdx} className="py-3 px-4 text-right">
+                        <Skeleton className="h-3.5 w-12 ml-auto" />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TableCard>
+      ) : o && (
         <TableCard>
           <TableContainer isEmpty={data.breakdown.length === 0} emptyMessage="No data for this period">
             {data.breakdown_type === 'source'
@@ -308,8 +364,6 @@ function RemindersDashboard() {
     return ` at ${formatTime(timeStr)}`
   }
 
-  if (isLoading) return <PageLoading />
-
   return (
     <TablePageLayout>
       <div className="px-6 py-4">
@@ -320,7 +374,7 @@ function RemindersDashboard() {
       </div>
 
       <TableCard>
-        <TableContainer isEmpty={!reminders?.length} emptyMessage="No reminders">
+        <TableContainer isEmpty={!isLoading && !reminders?.length} emptyMessage="No reminders">
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-gray-100">
@@ -332,7 +386,7 @@ function RemindersDashboard() {
               </tr>
             </thead>
             <tbody>
-              {reminders?.map((reminder) => (
+              {isLoading ? <TableRowsSkeleton rows={5} columns={5} /> : reminders?.map((reminder) => (
                 <tr
                   key={reminder.id}
                   onClick={() => handleNavigate(reminder.notable_type, reminder.notable_id)}

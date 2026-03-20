@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 import type {
   ClientData,
   ClientListItem,
@@ -77,16 +77,8 @@ export function useCreateClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: CreateClientData) => {
-      try {
-        return await api.post<ClientData>('/clients/', data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to create client')
-        }
-        throw error
-      }
-    },
+    mutationFn: (data: CreateClientData) =>
+      withApiError(() => api.post<ClientData>('/clients/', data), 'Failed to create client'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['clients'] })
     },
@@ -101,16 +93,8 @@ export function useUpdateClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateClientData }) => {
-      try {
-        return await api.patch<ClientData>(`/clients/${id}/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to update client')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, data }: { id: string; data: UpdateClientData }) =>
+      withApiError(() => api.patch<ClientData>(`/clients/${id}/`, data), 'Failed to update client'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['clients'] })
       queryClient.refetchQueries({ queryKey: ['clients', variables.id] })
@@ -127,18 +111,8 @@ export function useChangeClientStatus() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: ClientStatus }) => {
-      try {
-        return await api.post<ClientData>(`/clients/${id}/change_status/`, { status })
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to change client status'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, status }: { id: string; status: ClientStatus }) =>
+      withApiError(() => api.post<ClientData>(`/clients/${id}/change_status/`, { status }), 'Failed to change client status'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['clients'] })
       queryClient.refetchQueries({ queryKey: ['clients', variables.id] })
@@ -153,18 +127,8 @@ export function useUpdateCoApplicant() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ clientId, data }: { clientId: string; data: UpdateCoApplicantData }) => {
-      try {
-        return await api.post<ClientData>(`/clients/${clientId}/update_co_applicant/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to update co-applicant'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ clientId, data }: { clientId: string; data: UpdateCoApplicantData }) =>
+      withApiError(() => api.post<ClientData>(`/clients/${clientId}/update_co_applicant/`, data), 'Failed to update co-applicant'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['clients'] })
       queryClient.refetchQueries({ queryKey: ['clients', variables.clientId] })
@@ -180,16 +144,8 @@ export function useCreateCaseFromClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (clientId: string) => {
-      try {
-        return await api.post<CaseData>(`/clients/${clientId}/create_case/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to create case')
-        }
-        throw error
-      }
-    },
+    mutationFn: (clientId: string) =>
+      withApiError(() => api.post<CaseData>(`/clients/${clientId}/create_case/`), 'Failed to create case'),
     onSuccess: (_data, clientId) => {
       queryClient.refetchQueries({ queryKey: ['clients'] })
       queryClient.refetchQueries({ queryKey: ['clients', clientId] })
@@ -205,16 +161,8 @@ export function useDeleteClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        await api.delete(`/clients/${id}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to delete client')
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.delete(`/clients/${id}/`), 'Failed to delete client'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['clients'] })
     },
@@ -366,18 +314,8 @@ export function useUpdateClientExtraDetails() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ clientId, data }: { clientId: string; data: UpdateClientExtraDetailsData }) => {
-      try {
-        return await api.patch<ClientExtraDetailsData>(`/clients/${clientId}/extra_details/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to update extra details'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ clientId, data }: { clientId: string; data: UpdateClientExtraDetailsData }) =>
+      withApiError(() => api.patch<ClientExtraDetailsData>(`/clients/${clientId}/extra_details/`, data), 'Failed to update extra details'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['clientExtraDetails', variables.clientId] })
       queryClient.refetchQueries({ queryKey: ['clients', variables.clientId] })

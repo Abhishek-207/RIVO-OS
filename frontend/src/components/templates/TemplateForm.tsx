@@ -227,7 +227,7 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]"
               placeholder={category === 'system' ? 'e.g., Preapproval Notification' : 'e.g., Welcome Message'}
             />
           </div>
@@ -272,15 +272,16 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Trigger On <span className="text-red-500">*</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={triggerType}
-                  onChange={(e) => { setTriggerType(e.target.value); setTriggerValue('') }}
-                  className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-                >
-                  <option value="">Select trigger type...</option>
-                  <option value="case_stage">Case Stage Change</option>
-                  <option value="client_status">Client Status Change</option>
-                </select>
+                  onChange={(val) => { setTriggerType(val); setTriggerValue('') }}
+                  options={[
+                    { value: '', label: 'Select trigger type...' },
+                    { value: 'case_stage', label: 'Case Stage Change' },
+                    { value: 'client_status', label: 'Client Status Change' },
+                  ]}
+                  hideSearch
+                />
               </div>
 
               {/* Trigger Value */}
@@ -363,7 +364,7 @@ export function TemplateForm({ template, onClose, onSuccess }: TemplateFormProps
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Hello {first_name}, thank you for reaching out..."
                   rows={6}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:border-[#1e3a5f]"
                 />
               </div>
 

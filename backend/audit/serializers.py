@@ -11,6 +11,9 @@ This module provides serializers for:
 from rest_framework import serializers
 from django.utils import timezone
 from datetime import timedelta
+from zoneinfo import ZoneInfo
+
+UAE_TZ = ZoneInfo('Asia/Dubai')
 
 from audit.models import AuditLog, Note, Reminder, ReminderStatus
 from users.models import User
@@ -141,10 +144,11 @@ class ActivityTimelineEntrySerializer(serializers.Serializer):
     changes = FieldChangeSerializer(many=True, allow_null=True, required=False)
 
     def get_time_display(self, obj):
-        """Format time as human-readable (e.g., '2:30 PM')."""
+        """Format time as human-readable in UAE timezone (e.g., '2:30 PM')."""
         timestamp = obj.get('timestamp')
         if timestamp:
-            return timestamp.strftime('%I:%M %p').lstrip('0')
+            local_time = timestamp.astimezone(UAE_TZ)
+            return local_time.strftime('%I:%M %p').lstrip('0')
         return ''
 
 
@@ -155,12 +159,12 @@ class ActivityTimelineGroupSerializer(serializers.Serializer):
     entries = ActivityTimelineEntrySerializer(many=True)
 
     def get_date_display(self, obj):
-        """Format date with relative labels (Today, Yesterday, or date)."""
+        """Format date with relative labels (Today, Yesterday, or date) in UAE timezone."""
         date = obj.get('date')
         if not date:
             return ''
 
-        today = timezone.now().date()
+        today = timezone.now().astimezone(UAE_TZ).date()
         yesterday = today - timedelta(days=1)
 
         if date == today:

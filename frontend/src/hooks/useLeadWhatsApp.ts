@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 
 export interface LeadWhatsAppMessage {
   id: string
@@ -60,19 +60,11 @@ export function useSendLeadWhatsAppMessage() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ leadId, message }: { leadId: string; message: string }) => {
-      try {
-        return await api.post<SendLeadMessageResponse>(`/leads/${leadId}/messages/send/`, {
-          message,
-        })
-      } catch (error) {
-        if (error instanceof ApiError) {
-          const errorData = error.data as { error?: string }
-          throw new Error(errorData?.error || 'Failed to send message')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ leadId, message }: { leadId: string; message: string }) =>
+      withApiError(
+        () => api.post<SendLeadMessageResponse>(`/leads/${leadId}/messages/send/`, { message }),
+        'Failed to send message',
+      ),
     onSuccess: (_data, variables) => {
       // Invalidate the messages query to refetch
       queryClient.refetchQueries({ queryKey: ['lead-whatsapp-messages', variables.leadId] })

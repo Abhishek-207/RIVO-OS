@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 import { API_BASE_URL } from '@/config/api'
 import type {
   ActivityTimelineGroup,
@@ -39,24 +39,8 @@ export function useCreateNote() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      recordType,
-      recordId,
-      data,
-    }: {
-      recordType: NotableType
-      recordId: string
-      data: CreateNoteData
-    }) => {
-      try {
-        return await api.post<NoteData>(`/${recordType}s/${recordId}/notes/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to create note')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ recordType, recordId, data }: { recordType: NotableType; recordId: string; data: CreateNoteData }) =>
+      withApiError(() => api.post<NoteData>(`/${recordType}s/${recordId}/notes/`, data), 'Failed to create note'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['activity', variables.recordType, variables.recordId] })
       queryClient.refetchQueries({ queryKey: ['dashboard-reminders'] })
@@ -71,16 +55,8 @@ export function useUpdateNote() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ noteId, data }: { noteId: string; data: UpdateNoteData }) => {
-      try {
-        return await api.patch<NoteData>(`/notes/${noteId}/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to update note')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ noteId, data }: { noteId: string; data: UpdateNoteData }) =>
+      withApiError(() => api.patch<NoteData>(`/notes/${noteId}/`, data), 'Failed to update note'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['activity'] })
       queryClient.refetchQueries({ queryKey: ['dashboard-reminders'] })
@@ -95,16 +71,8 @@ export function useDeleteNote() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (noteId: string) => {
-      try {
-        await api.delete(`/notes/${noteId}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to delete note')
-        }
-        throw error
-      }
-    },
+    mutationFn: (noteId: string) =>
+      withApiError(() => api.delete(`/notes/${noteId}/`), 'Failed to delete note'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['activity'] })
       queryClient.refetchQueries({ queryKey: ['dashboard-reminders'] })
@@ -132,16 +100,8 @@ export function useCompleteReminder() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (reminderId: string) => {
-      try {
-        return await api.post<ReminderData>(`/reminders/${reminderId}/complete/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to complete reminder')
-        }
-        throw error
-      }
-    },
+    mutationFn: (reminderId: string) =>
+      withApiError(() => api.post<ReminderData>(`/reminders/${reminderId}/complete/`), 'Failed to complete reminder'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['dashboard-reminders'] })
       queryClient.refetchQueries({ queryKey: ['activity'] })
@@ -156,16 +116,8 @@ export function useDismissReminder() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (reminderId: string) => {
-      try {
-        return await api.post<ReminderData>(`/reminders/${reminderId}/dismiss/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to dismiss reminder')
-        }
-        throw error
-      }
-    },
+    mutationFn: (reminderId: string) =>
+      withApiError(() => api.post<ReminderData>(`/reminders/${reminderId}/dismiss/`), 'Failed to dismiss reminder'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['dashboard-reminders'] })
       queryClient.refetchQueries({ queryKey: ['activity'] })

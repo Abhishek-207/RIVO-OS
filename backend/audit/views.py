@@ -14,6 +14,7 @@ import logging
 import re
 from io import StringIO
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from collections import defaultdict
 
 from django.db.models import Q
@@ -700,7 +701,7 @@ class ActivityTimelineView(APIView):
                 if not visible_changes:
                     continue
 
-            date = entry.timestamp.date()
+            date = entry.timestamp.astimezone(ZoneInfo('Asia/Dubai')).date()
             formatted_entry = {
                 'id': entry.id,
                 'timestamp': entry.timestamp,

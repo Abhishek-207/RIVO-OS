@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, X, Loader2, Search, Key, Eye, EyeOff, Check } from 'lucide-react'
+import { Plus, Trash2, X, Loader2, Key, Eye, EyeOff, Check } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   useUsers,
@@ -11,7 +11,9 @@ import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { UserSidePanel } from '@/components/UserSidePanel'
 import { Pagination } from '@/components/Pagination'
-import { TablePageLayout, TableCard, TableContainer, PageLoading, PageError, StatusErrorToast } from '@/components/ui/TablePageLayout'
+import { TablePageLayout, TableCard, TableContainer, PageError, StatusErrorToast, SearchInput, StatusTabs } from '@/components/ui/TablePageLayout'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 
 const STATUS_TABS: { value: 'all' | 'active' | 'inactive'; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -100,7 +102,6 @@ export function UsersPage() {
     }
   }
 
-  if (isLoading) return <PageLoading />
   if (error) return <PageError entityName="users" message={error.message} />
 
   return (
@@ -132,43 +133,31 @@ export function UsersPage() {
 
         {/* Search, Status Tabs and Role Filter */}
         <div className="flex items-center gap-4 mt-4">
-          <div className="relative w-48">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full h-8 pl-8 pr-3 text-xs border border-gray-200 rounded-lg focus:outline-none"
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search users..."
+          />
+          <StatusTabs
+            tabs={STATUS_TABS}
+            value={statusFilter}
+            onChange={(val) => { setStatusFilter(val); setCurrentPage(1) }}
+          />
+          <div className="w-48">
+            <SearchableSelect
+              value={roleFilter}
+              onChange={(val) => { setRoleFilter(val as typeof roleFilter); setCurrentPage(1) }}
+              options={[
+                { value: 'all', label: 'All Roles' },
+                { value: 'admin', label: 'Admin' },
+                { value: 'channel_owner', label: 'Channel Owner' },
+                { value: 'mortgage_specialist', label: 'Mortgage Specialist' },
+                { value: 'process_owner', label: 'Process Owner' },
+              ]}
+              size="sm"
+              hideSearch
             />
           </div>
-          <div className="flex items-center gap-1 border-b border-gray-200">
-            {STATUS_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => { setStatusFilter(tab.value); setCurrentPage(1) }}
-                className={cn(
-                  'px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors',
-                  statusFilter === tab.value
-                    ? 'border-[#1e3a5f] text-[#1e3a5f]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <select
-            value={roleFilter}
-            onChange={(e) => { setRoleFilter(e.target.value as typeof roleFilter); setCurrentPage(1) }}
-            className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
-          >
-            <option value="all">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="channel_owner">Channel Owner</option>
-            <option value="mortgage_specialist">Mortgage Specialist</option>
-            <option value="process_owner">Process Owner</option>
-          </select>
         </div>
       </div>
 
@@ -178,18 +167,19 @@ export function UsersPage() {
 
       {/* Users Table Card */}
       <TableCard>
-        <TableContainer isEmpty={users.length === 0} emptyMessage="No users found">
-          <table className="w-full table-fixed">
+        <TableContainer isEmpty={!isLoading && users.length === 0} emptyMessage="No users found">
+          <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100">
-                <th className="w-1/3 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                <th className="w-1/3 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Username</th>
-                <th className="w-1/3 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Role</th>
-                <th className="w-12 text-right pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                <th className="text-left pb-3 pl-6 text-xs font-medium text-gray-400 uppercase tracking-wider">Username</th>
+                <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Role</th>
+                <th className="text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="w-44 text-right pb-3 pr-4 text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {isLoading ? <TableRowsSkeleton rows={8} columns={5} /> : users.map((user) => (
                 <tr
                   key={user.id}
                   onClick={() => setSelectedUserId(user.id)}
@@ -203,7 +193,7 @@ export function UsersPage() {
                       <span className="text-xs font-medium text-gray-900">{user.name}</span>
                     </div>
                   </td>
-                  <td className="py-3">
+                  <td className="py-3 pl-6">
                     <span className="text-xs text-gray-600">{user.username}</span>
                   </td>
                   <td className="py-3">
@@ -211,7 +201,21 @@ export function UsersPage() {
                       {roleLabels[user.role] || user.role}
                     </span>
                   </td>
-                  <td className="py-3 text-right">
+                  <td className="py-3">
+                    <span className={cn(
+                      'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full',
+                      user.is_active
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-gray-100 text-gray-500'
+                    )}>
+                      <span className={cn(
+                        'h-1.5 w-1.5 rounded-full',
+                        user.is_active ? 'bg-emerald-500' : 'bg-gray-400'
+                      )} />
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="py-3 text-right pr-4">
                     <button
                       onClick={(e) => {
                         e.stopPropagation()

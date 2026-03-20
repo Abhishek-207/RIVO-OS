@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 import type {
   LeadData,
   LeadListItem,
@@ -57,16 +57,8 @@ export function useUpdateLead() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateLeadData }) => {
-      try {
-        return await api.patch<LeadData>(`/leads/${id}/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to update lead')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, data }: { id: string; data: UpdateLeadData }) =>
+      withApiError(() => api.patch<LeadData>(`/leads/${id}/`, data), 'Failed to update lead'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['leads'] })
       queryClient.refetchQueries({ queryKey: ['leads', variables.id] })
@@ -82,18 +74,8 @@ export function useChangeLeadStatus() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: LeadStatus }) => {
-      try {
-        return await api.post<LeadData>(`/leads/${id}/change_status/`, { status })
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to change lead status'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, status }: { id: string; status: LeadStatus }) =>
+      withApiError(() => api.post<LeadData>(`/leads/${id}/change_status/`, { status }), 'Failed to change lead status'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['leads'] })
       queryClient.refetchQueries({ queryKey: ['leads', variables.id] })
@@ -109,18 +91,8 @@ export function useConvertLeadToClient() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        return await api.post<ClientData>(`/leads/${id}/convert_to_client/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to convert lead to client'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.post<ClientData>(`/leads/${id}/convert_to_client/`), 'Failed to convert lead to client'),
     onSuccess: (_data, leadId) => {
       queryClient.refetchQueries({ queryKey: ['leads'] })
       queryClient.refetchQueries({ queryKey: ['leads', leadId] })

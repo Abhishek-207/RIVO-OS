@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 import type { UserRole } from '@/types/auth'
 
 export interface UserData {
@@ -88,16 +88,8 @@ export function useCreateUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: CreateUserData) => {
-      try {
-        return await api.post<UserData>('/users/', data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to create user')
-        }
-        throw error
-      }
-    },
+    mutationFn: (data: CreateUserData) =>
+      withApiError(() => api.post<UserData>('/users/', data), 'Failed to create user'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['users'] })
     },
@@ -111,16 +103,8 @@ export function useUpdateUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateUserData }) => {
-      try {
-        return await api.patch<UserData>(`/users/${id}/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to update user')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, data }: { id: string; data: UpdateUserData }) =>
+      withApiError(() => api.patch<UserData>(`/users/${id}/`, data), 'Failed to update user'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['users'] })
     },
@@ -134,16 +118,8 @@ export function useDeactivateUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        return await api.post<UserData>(`/users/${id}/deactivate/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to deactivate user')
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.post<UserData>(`/users/${id}/deactivate/`), 'Failed to deactivate user'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['users'] })
     },
@@ -157,16 +133,8 @@ export function useReactivateUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        return await api.post<UserData>(`/users/${id}/reactivate/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to reactivate user')
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.post<UserData>(`/users/${id}/reactivate/`), 'Failed to reactivate user'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['users'] })
     },
@@ -178,18 +146,11 @@ export function useReactivateUser() {
  */
 export function useResetPassword() {
   return useMutation({
-    mutationFn: async ({ id, newPassword }: { id: string; newPassword: string }) => {
-      try {
-        return await api.post<{ message: string }>(`/users/${id}/reset_password/`, {
-          new_password: newPassword,
-        })
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to reset password')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, newPassword }: { id: string; newPassword: string }) =>
+      withApiError(
+        () => api.post<{ message: string }>(`/users/${id}/reset_password/`, { new_password: newPassword }),
+        'Failed to reset password',
+      ),
   })
 }
 
@@ -200,16 +161,8 @@ export function useDeleteUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        await api.delete(`/users/${id}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to delete user')
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.delete(`/users/${id}/`), 'Failed to delete user'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['users'] })
     },

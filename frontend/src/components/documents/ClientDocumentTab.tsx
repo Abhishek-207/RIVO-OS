@@ -4,7 +4,8 @@
  */
 
 import { useState, useCallback } from 'react'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
+import { DocumentTabSkeleton } from '@/components/ui/Skeleton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DocumentChecklist } from './DocumentChecklist'
 import { JointApplicationChecklist } from './JointApplicationChecklist'
@@ -112,11 +113,7 @@ export function ClientDocumentTab({ clientId }: ClientDocumentTabProps) {
   }, [])
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-32">
-        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-      </div>
-    )
+    return <DocumentTabSkeleton />
   }
 
   if (error) {

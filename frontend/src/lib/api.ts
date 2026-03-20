@@ -164,4 +164,99 @@ export const api = {
     uploadFile<T>(endpoint, file, additionalData),
 }
 
-export { ApiError }
+/**
+ * Extract a user-friendly error message from an ApiError.
+ *
+ * Handles all backend response formats:
+ * - { error: "message" }              — custom error responses
+ * - { detail: "message" }             — DRF authentication errors
+ * - { field: ["error", ...], ... }    — DRF serializer validation errors
+ * - { errors: { field: "msg", ... } } — lead ingest validation
+ * - { error: "msg", reasons: [...] }  — case creation with reasons
+ * - Network/timeout errors
+ */
+function extractApiError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) {
+    const data = error.data as Record<string, unknown> | null
+
+    if (!data) {
+      // No response body — use status-based messages
+      if (error.status === 0 || error.status >= 500) {
+        return 'Server is temporarily unavailable. Please try again later.'
+      }
+      if (error.status === 403) {
+        return 'You do not have permission to perform this action.'
+      }
+      if (error.status === 404) {
+        return 'The requested resource was not found.'
+      }
+      return fallback
+    }
+
+    // Format: { error: "message" }
+    if (typeof data.error === 'string') {
+      // Append reasons if present: { error: "msg", reasons: ["reason1", ...] }
+      if (Array.isArray(data.reasons) && data.reasons.length > 0) {
+        return `${data.error} ${(data.reasons as string[]).join('. ')}.`
+      }
+      return data.error
+    }
+
+    // Format: { detail: "message" } (DRF standard)
+    if (typeof data.detail === 'string') {
+      return data.detail
+    }
+
+    // Format: { errors: { field: "msg", ... } } (lead ingest)
+    if (data.errors && typeof data.errors === 'object' && !Array.isArray(data.errors)) {
+      const messages = Object.values(data.errors as Record<string, string>)
+      if (messages.length > 0) {
+        return messages.join('. ') + '.'
+      }
+    }
+
+    // Format: { field: ["error1", ...], ... } (DRF serializer validation)
+    // Detect by checking if values are arrays of strings
+    const fieldErrors: string[] = []
+    for (const [key, value] of Object.entries(data)) {
+      if (key === 'error' || key === 'detail' || key === 'errors' || key === 'reasons') continue
+      if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string') {
+        for (const msg of value as string[]) {
+          // Strip trailing punctuation, capitalize first letter
+          const cleaned = msg.replace(/[.\s]+$/, '')
+          fieldErrors.push(cleaned.charAt(0).toUpperCase() + cleaned.slice(1))
+        }
+      }
+    }
+    if (fieldErrors.length > 0) {
+      return fieldErrors.join('. ') + '.'
+    }
+
+    return fallback
+  }
+
+  // Network errors (fetch failures, timeouts)
+  if (error instanceof TypeError && error.message === 'Failed to fetch') {
+    return 'Network error. Please check your connection and try again.'
+  }
+
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return fallback
+}
+
+/**
+ * Wrap an API call in a mutation-friendly error handler.
+ * Catches ApiError and re-throws as a plain Error with a user-friendly message.
+ */
+async function withApiError<T>(fn: () => Promise<T>, fallback: string): Promise<T> {
+  try {
+    return await fn()
+  } catch (error) {
+    throw new Error(extractApiError(error, fallback))
+  }
+}
+
+export { ApiError, extractApiError, withApiError }

@@ -25,12 +25,12 @@ import {
   TablePageLayout,
   TableCard,
   TableContainer,
-  PageLoading,
   PageError,
   StatusErrorToast,
   PageHeader,
   SearchInput,
 } from '@/components/ui/TablePageLayout'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrencyAED } from '@/lib/formatters'
 import { formatDate } from '@/lib/dateUtils'
@@ -84,7 +84,7 @@ function BankFilterDropdown({ value, onChange, banks }: {
   const bankOptions = [
     { value: '', label: 'All Banks' },
     ...(banks || []).map(bank => ({
-      value: bank.id,
+      value: bank.name,
       label: bank.name,
       icon: bank.icon ? (
         <div className="h-4 w-4 rounded bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
@@ -95,7 +95,7 @@ function BankFilterDropdown({ value, onChange, banks }: {
   ]
 
   return (
-    <div className="min-w-[150px]">
+    <div className="min-w-[260px]">
       <SearchableSelect
         value={value}
         onChange={onChange}
@@ -164,7 +164,6 @@ export function CasesPage() {
     }
   }
 
-  if (isLoading) return <PageLoading />
   if (error) return <PageError entityName="cases" message={error.message} />
 
   return (
@@ -185,7 +184,7 @@ export function CasesPage() {
             placeholder="Search by client name..."
           />
           <BankFilterDropdown value={bankFilter} onChange={(value) => setFilters({ bank: value, page: '1' })} banks={banks} />
-          <div className="min-w-[160px]">
+          <div className="min-w-[260px]">
             <SearchableSelect
               value={stageFilter}
               onChange={(value) => setFilters({ stage: value, page: '1' })}
@@ -206,7 +205,7 @@ export function CasesPage() {
       {statusError && <StatusErrorToast message={statusError} onClose={() => setStatusError(null)} />}
 
       <TableCard>
-        <TableContainer isEmpty={cases.length === 0} emptyMessage="No cases found">
+        <TableContainer isEmpty={!isLoading && cases.length === 0} emptyMessage="No cases found">
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-gray-100">
@@ -219,7 +218,7 @@ export function CasesPage() {
               </tr>
             </thead>
             <tbody>
-              {cases.map((caseItem) => (
+              {isLoading ? <TableRowsSkeleton rows={8} columns={6} /> : cases.map((caseItem) => (
                 <tr
                   key={caseItem.id}
                   onClick={() => { setSelectedCaseId(caseItem.id); setSidePanelOpen(true) }}
@@ -285,13 +284,13 @@ export function CasesPage() {
           </table>
         </TableContainer>
 
-        <Pagination
+        {!isLoading && <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
           onPageChange={(page) => setFilters({ page: String(page) })}
           itemLabel="cases"
-        />
+        />}
       </TableCard>
 
       <CaseSidePanel caseId={selectedCaseId} isOpen={sidePanelOpen} onClose={() => { setSidePanelOpen(false); setSelectedCaseId(null) }} />

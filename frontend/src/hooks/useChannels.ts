@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 
 export type SourceStatus = 'active' | 'inactive'
 
@@ -98,23 +98,15 @@ export function useCreateChannel() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: {
+    mutationFn: (data: {
       name: string
       description?: string
       is_trusted: boolean
       default_sla_minutes?: number | null
       owner?: string | null
       monthly_spend?: string | null
-    }) => {
-      try {
-        return await api.post<Channel>('/channels/', data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to create channel')
-        }
-        throw error
-      }
-    },
+    }) =>
+      withApiError(() => api.post<Channel>('/channels/', data), 'Failed to create channel'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['channels'] })
     },
@@ -128,16 +120,8 @@ export function useUpdateChannel() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Channel> }) => {
-      try {
-        return await api.patch<Channel>(`/channels/${id}/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to update channel')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, data }: { id: string; data: Partial<Channel> }) =>
+      withApiError(() => api.patch<Channel>(`/channels/${id}/`, data), 'Failed to update channel'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['channels'] })
       queryClient.refetchQueries({ queryKey: ['channels', variables.id] })
@@ -152,16 +136,8 @@ export function useDeleteChannel() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        await api.delete(`/channels/${id}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to delete channel')
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.delete(`/channels/${id}/`), 'Failed to delete channel'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['channels'] })
     },
@@ -175,16 +151,8 @@ export function useAddSource() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ channelId, name }: { channelId: string; name: string }) => {
-      try {
-        return await api.post<Source>(`/channels/${channelId}/add_source/`, { name })
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to add source')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ channelId, name }: { channelId: string; name: string }) =>
+      withApiError(() => api.post<Source>(`/channels/${channelId}/add_source/`, { name }), 'Failed to add source'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['channels'] })
     },
@@ -198,16 +166,8 @@ export function useUpdateSource() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name?: string; sla_minutes?: number | null; status?: SourceStatus; linked_user?: string | null } }) => {
-      try {
-        return await api.patch<Source>(`/sources/${id}/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to update source')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; sla_minutes?: number | null; status?: SourceStatus; linked_user?: string | null } }) =>
+      withApiError(() => api.patch<Source>(`/sources/${id}/`, data), 'Failed to update source'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['channels'] })
     },
@@ -221,16 +181,8 @@ export function useDeleteSource() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        await api.delete(`/sources/${id}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to delete source')
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.delete(`/sources/${id}/`), 'Failed to delete source'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['channels'] })
     },

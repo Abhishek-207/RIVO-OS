@@ -14,12 +14,12 @@ import {
   TablePageLayout,
   TableCard,
   TableContainer,
-  PageLoading,
   PageError,
   PageHeader,
   StatusTabs,
   SearchInput,
 } from '@/components/ui/TablePageLayout'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
 import { formatDate, formatTimeAgo } from '@/lib/formatters'
 import type { LeadListItem, LeadStatus } from '@/types/mortgage'
 import { cn } from '@/lib/utils'
@@ -87,7 +87,6 @@ export function LeadsPage() {
     return { text: slaDisplay, status: 'remaining' as const }
   }
 
-  if (isLoading) return <PageLoading />
   if (error) return <PageError entityName="leads" message={error.message} />
 
   return (
@@ -106,7 +105,7 @@ export function LeadsPage() {
             value={statusFilter}
             onChange={(value) => setFilters({ status: value, page: '1' })}
           />
-          <div className="min-w-[160px]">
+          <div className="min-w-[260px]">
             <SearchableSelect
               value={sourceFilter}
               onChange={(value) => setFilters({ source: value, page: '1' })}
@@ -123,7 +122,7 @@ export function LeadsPage() {
       </div>
 
       <TableCard>
-        <TableContainer isEmpty={leads.length === 0} emptyMessage="No leads found">
+        <TableContainer isEmpty={!isLoading && leads.length === 0} emptyMessage="No leads found">
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-gray-100">
@@ -134,7 +133,7 @@ export function LeadsPage() {
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead) => {
+              {isLoading ? <TableRowsSkeleton rows={8} columns={4} /> : leads.map((lead) => {
                 const sla = getSlaDisplay(lead.sla_display)
                 return (
                   <tr
@@ -173,13 +172,13 @@ export function LeadsPage() {
           </table>
         </TableContainer>
 
-        <Pagination
+        {!isLoading && <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
           onPageChange={(page) => setFilters({ page: String(page) })}
           itemLabel="leads"
-        />
+        />}
       </TableCard>
 
       {selectedLeadId && (

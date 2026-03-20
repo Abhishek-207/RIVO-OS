@@ -13,6 +13,8 @@ import {
 } from '@/hooks/useUsers'
 import type { UserRole } from '@/types/auth'
 import { cn } from '@/lib/utils'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { SidePanelSkeleton } from '@/components/ui/Skeleton'
 
 interface UserSidePanelProps {
   userId: string
@@ -113,8 +115,14 @@ export function UserSidePanel({ userId, onClose }: UserSidePanelProps) {
     return (
       <>
         <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-        <div className="fixed right-0 top-0 h-full w-[400px] bg-white shadow-xl z-50 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <div className="fixed right-0 top-0 h-full w-[400px] bg-white shadow-xl z-50 flex flex-col">
+          <div className="h-14 flex items-center justify-between px-4 border-b border-gray-100 flex-shrink-0">
+            <h2 className="text-sm font-semibold text-gray-900">Edit User</h2>
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <SidePanelSkeleton variant="user" />
         </div>
       </>
     )
@@ -170,7 +178,7 @@ export function UserSidePanel({ userId, onClose }: UserSidePanelProps) {
               type="text"
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]"
               placeholder="Enter full name"
             />
           </div>
@@ -185,7 +193,7 @@ export function UserSidePanel({ userId, onClose }: UserSidePanelProps) {
               value={username}
               onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
               disabled={!isCreateMode}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 disabled:text-gray-500"
+              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] disabled:bg-gray-50 disabled:text-gray-500"
               placeholder="username"
             />
           </div>
@@ -193,17 +201,12 @@ export function UserSidePanel({ userId, onClose }: UserSidePanelProps) {
           {/* Role */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
-            <select
+            <SearchableSelect
               value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-            >
-              {roleOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setRole(val as UserRole)}
+              options={roleOptions}
+              hideSearch
+            />
           </div>
 
           {/* Status (only for edit mode) */}

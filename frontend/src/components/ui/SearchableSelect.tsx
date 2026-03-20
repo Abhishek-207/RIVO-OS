@@ -36,6 +36,8 @@ interface SearchableSelectProps {
   popoverMinWidth?: number
   /** Custom display text for the trigger (when you want to show a shorter label than the option label) */
   displayValue?: (option: SearchableSelectOption) => string
+  /** Hide the search input (useful for small option lists) */
+  hideSearch?: boolean
 }
 
 export function SearchableSelect({
@@ -50,6 +52,7 @@ export function SearchableSelect({
   emptyMessage = 'No results found.',
   popoverMinWidth,
   displayValue,
+  hideSearch = false,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -98,8 +101,8 @@ export function SearchableSelect({
           disabled={disabled}
           className={cn(
             'w-full flex items-center justify-between border border-gray-200 rounded-lg bg-white text-left',
-            'focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]',
-            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'focus:outline-none focus:border-[#1e3a5f]',
+            'disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed',
             isSm ? 'h-8 px-2 text-xs' : 'h-9 px-3 text-sm',
             className
           )}
@@ -122,9 +125,12 @@ export function SearchableSelect({
         <Popover.Content
           className="z-50 bg-white rounded-lg border border-gray-200 shadow-lg overflow-hidden"
           style={{
+            width: popoverMinWidth ? `${popoverMinWidth}px` : undefined,
             minWidth: popoverMinWidth
-              ? `${Math.max(popoverMinWidth, 260)}px`
-              : 'max(var(--radix-popover-trigger-width), 260px)',
+              ? undefined
+              : hideSearch
+                ? 'var(--radix-popover-trigger-width)'
+                : 'max(var(--radix-popover-trigger-width), 260px)',
           }}
           sideOffset={4}
           align="start"
@@ -132,16 +138,18 @@ export function SearchableSelect({
         >
           <Command shouldFilter={true} className="flex flex-col">
             {/* Search input */}
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-              <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-              <Command.Input
-                ref={inputRef}
-                value={search}
-                onValueChange={setSearch}
-                placeholder={searchPlaceholder}
-                className="flex-1 text-sm outline-none placeholder:text-gray-400 bg-transparent"
-              />
-            </div>
+            {!hideSearch && (
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
+                <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                <Command.Input
+                  ref={inputRef}
+                  value={search}
+                  onValueChange={setSearch}
+                  placeholder={searchPlaceholder}
+                  className="flex-1 text-sm outline-none placeholder:text-gray-400 bg-transparent"
+                />
+              </div>
+            )}
 
             <Command.List className="max-h-60 overflow-y-auto p-1">
               <Command.Empty className="py-4 text-center text-xs text-gray-500">

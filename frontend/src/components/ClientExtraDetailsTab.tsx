@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Loader2, AlertCircle, Save } from 'lucide-react'
 import { useClientExtraDetails, useUpdateClientExtraDetails } from '@/hooks/useClients'
 import { FormField } from '@/components/ui/FormField'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { useAuth } from '@/contexts/AuthContext'
 import type { MaritalStatus, EmploymentType, UpdateClientExtraDetailsData } from '@/types/mortgage'
 
@@ -168,7 +169,7 @@ export function ClientExtraDetailsTab({ clientId, employmentType, viewOnly: view
     )
   }
 
-  const inputClass = "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50"
+  const inputClass = "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] disabled:bg-gray-50"
   const selectClass = "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white disabled:bg-gray-50"
 
   return (
@@ -185,10 +186,13 @@ export function ClientExtraDetailsTab({ clientId, employmentType, viewOnly: view
         <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Family & Personal</h3>
         <div className="grid grid-cols-3 gap-3">
           <FormField label="Marital Status">
-            <select value={maritalStatus} onChange={(e) => setMaritalStatus(e.target.value as MaritalStatus | '')} disabled={isReadOnly} className={selectClass}>
-              <option value="">Select...</option>
-              {MARITAL_STATUS_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-            </select>
+            <SearchableSelect
+              value={maritalStatus}
+              onChange={(val) => setMaritalStatus(val as MaritalStatus | '')}
+              options={[{ value: '', label: 'Select...' }, ...MARITAL_STATUS_OPTIONS]}
+              disabled={isReadOnly}
+              hideSearch
+            />
           </FormField>
           <FormField label="Dependents">
             <input type="number" min="0" value={dependents} onChange={(e) => setDependents(e.target.value)} disabled={isReadOnly} className={inputClass} />

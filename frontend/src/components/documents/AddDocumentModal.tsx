@@ -106,7 +106,7 @@ export function AddDocumentModal({
                     }}
                     placeholder="Enter document name..."
                     autoFocus
-                    className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]"
+                    className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]"
                   />
                   {error && (
                     <p className="mt-1 text-xs text-red-600">{error}</p>

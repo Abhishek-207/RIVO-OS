@@ -11,11 +11,20 @@ import { leadToast } from '@/lib/toastMessages'
 import { SLACountdown } from '@/components/SLACountdown'
 import { FormField } from '@/components/ui/FormField'
 import { SidePanelWrapper } from '@/components/ui/SidePanelWrapper'
+import { SidePanelSkeleton } from '@/components/ui/Skeleton'
 import { LeadWhatsAppTab } from '@/components/whatsapp/LeadWhatsAppTab'
 import type { LeadStatus } from '@/types/mortgage'
 import { cn } from '@/lib/utils'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { SidePanelTabs } from '@/components/ui/SidePanelTabs'
+import type { SidePanelTab } from '@/components/ui/SidePanelTabs'
 
 type TabType = 'details' | 'whatsapp'
+
+const LEAD_TABS: SidePanelTab<TabType>[] = [
+  { value: 'details', label: 'Details' },
+  { value: 'whatsapp', label: 'WhatsApp', activeColor: '#00A884' },
+]
 
 const statusColors: Record<LeadStatus, string> = {
   active: 'bg-green-100 text-green-700',
@@ -144,18 +153,18 @@ export function LeadSidePanel({ leadId, onClose }: LeadSidePanelProps) {
                   {status === 'active' ? 'Active' : 'Declined'}
                 </span>
               ) : (
-                <select
+                <SearchableSelect
                   value={status}
-                  onChange={(e) => handleStatusChange(e.target.value as LeadStatus)}
+                  onChange={(val) => handleStatusChange(val as LeadStatus)}
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'declined', label: 'Declined' },
+                  ]}
+                  hideSearch
                   disabled={changeStatusMutation.isPending}
-                  className={cn(
-                    'px-2 py-0.5 text-xs font-medium rounded border-0 focus:outline-none cursor-pointer disabled:opacity-50',
-                    statusColors[status]
-                  )}
-                >
-                  <option value="active">Active</option>
-                  <option value="declined">Declined</option>
-                </select>
+                  size="sm"
+                  className={cn('border-0 font-medium w-auto', statusColors[status])}
+                />
               )
             )}
           </div>
@@ -193,29 +202,8 @@ export function LeadSidePanel({ leadId, onClose }: LeadSidePanelProps) {
 
         {/* Tabs */}
         {lead && (
-          <div className="flex mt-4 -mb-px">
-            <button
-              onClick={() => setActiveTab('details')}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-                activeTab === 'details'
-                  ? 'text-[#1e3a5f] border-[#1e3a5f]'
-                  : 'text-gray-500 border-transparent hover:text-gray-700'
-              )}
-            >
-              Details
-            </button>
-            <button
-              onClick={() => setActiveTab('whatsapp')}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-                activeTab === 'whatsapp'
-                  ? 'text-[#00A884] border-[#00A884]'
-                  : 'text-gray-500 border-transparent hover:text-[#00A884]'
-              )}
-            >
-              WhatsApp
-            </button>
+          <div className="mt-4">
+            <SidePanelTabs tabs={LEAD_TABS} value={activeTab} onChange={setActiveTab} />
           </div>
         )}
       </div>
@@ -224,9 +212,7 @@ export function LeadSidePanel({ leadId, onClose }: LeadSidePanelProps) {
       {activeTab === 'details' && (
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-            </div>
+            <SidePanelSkeleton variant="lead" />
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12">
               <AlertCircle className="h-8 w-8 text-red-400 mb-2" />
@@ -251,7 +237,7 @@ export function LeadSidePanel({ leadId, onClose }: LeadSidePanelProps) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     disabled={isReadOnly}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50"
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] disabled:bg-gray-50"
                   />
                 </FormField>
                 <FormField label="Phone *">
@@ -260,7 +246,7 @@ export function LeadSidePanel({ leadId, onClose }: LeadSidePanelProps) {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     disabled={isReadOnly}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50"
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] disabled:bg-gray-50"
                   />
                 </FormField>
                 <FormField label="Email" className="col-span-2">
@@ -270,7 +256,7 @@ export function LeadSidePanel({ leadId, onClose }: LeadSidePanelProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Optional"
                     disabled={isReadOnly}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50"
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] disabled:bg-gray-50"
                   />
                 </FormField>
               </div>
@@ -282,7 +268,7 @@ export function LeadSidePanel({ leadId, onClose }: LeadSidePanelProps) {
                   placeholder="Lead's interest or requirements..."
                   rows={3}
                   disabled={isReadOnly}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] resize-none disabled:bg-gray-50"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] resize-none disabled:bg-gray-50"
                 />
               </FormField>
 

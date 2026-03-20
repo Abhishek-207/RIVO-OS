@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 import type {
   CaseData,
   CaseListItem,
@@ -113,16 +113,8 @@ export function useCreateCase() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: CreateCaseData) => {
-      try {
-        return await api.post<CaseData>('/cases/', data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to create case')
-        }
-        throw error
-      }
-    },
+    mutationFn: (data: CreateCaseData) =>
+      withApiError(() => api.post<CaseData>('/cases/', data), 'Failed to create case'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['cases'] })
       queryClient.refetchQueries({ queryKey: ['clients'] })
@@ -138,16 +130,8 @@ export function useUpdateCase() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateCaseData }) => {
-      try {
-        return await api.patch<CaseData>(`/cases/${id}/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to update case')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, data }: { id: string; data: UpdateCaseData }) =>
+      withApiError(() => api.patch<CaseData>(`/cases/${id}/`, data), 'Failed to update case'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['cases'] })
       queryClient.refetchQueries({ queryKey: ['cases', variables.id] })
@@ -165,18 +149,8 @@ export function useChangeCaseStage() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, stage }: { id: string; stage: CaseStage }) => {
-      try {
-        return await api.post<CaseData>(`/cases/${id}/change_stage/`, { stage })
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to change case stage'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, stage }: { id: string; stage: CaseStage }) =>
+      withApiError(() => api.post<CaseData>(`/cases/${id}/change_stage/`, { stage }), 'Failed to change case stage'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['cases'] })
       queryClient.refetchQueries({ queryKey: ['cases', variables.id] })
@@ -217,16 +191,8 @@ export function useDeleteCase() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        await api.delete(`/cases/${id}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { error?: string })?.error || 'Failed to delete case')
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.delete(`/cases/${id}/`), 'Failed to delete case'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['cases'] })
     },

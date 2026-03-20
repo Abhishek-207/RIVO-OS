@@ -20,13 +20,13 @@ import {
   TablePageLayout,
   TableCard,
   TableContainer,
-  PageLoading,
   PageError,
   StatusErrorToast,
   PageHeader,
   StatusTabs,
   SearchInput,
 } from '@/components/ui/TablePageLayout'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
 import { formatDate, formatTimeAgo, formatDbr, getDbrColorClass } from '@/lib/formatters'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { cn } from '@/lib/utils'
@@ -181,7 +181,6 @@ export function ClientsPage() {
     }
   }
 
-  if (isLoading) return <PageLoading />
   if (error) return <PageError entityName="clients" message={error.message} />
 
   return (
@@ -202,7 +201,7 @@ export function ClientsPage() {
             value={statusFilter}
             onChange={(value) => setFilters({ status: value, page: '1' })}
           />
-          <div className="min-w-[160px]">
+          <div className="min-w-[260px]">
             <SearchableSelect
               value={sourceFilter}
               onChange={(value) => setFilters({ source: value, page: '1' })}
@@ -221,7 +220,7 @@ export function ClientsPage() {
       {statusError && <StatusErrorToast message={statusError} onClose={() => setStatusError(null)} />}
 
       <TableCard>
-        <TableContainer isEmpty={clients.length === 0} emptyMessage="No clients found">
+        <TableContainer isEmpty={!isLoading && clients.length === 0} emptyMessage="No clients found">
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-gray-100">
@@ -234,7 +233,7 @@ export function ClientsPage() {
               </tr>
             </thead>
             <tbody>
-              {clients.map((client) => {
+              {isLoading ? <TableRowsSkeleton rows={8} columns={6} /> : clients.map((client) => {
                 const sla = client.first_contact_sla_status || client.client_to_case_sla_status
                 return (
                   <tr
@@ -293,13 +292,13 @@ export function ClientsPage() {
           </table>
         </TableContainer>
 
-        <Pagination
+        {!isLoading && <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           totalItems={totalItems}
           onPageChange={(page) => setFilters({ page: String(page) })}
           itemLabel="clients"
-        />
+        />}
       </TableCard>
 
       {selectedClientId && <ClientSidePanel clientId={selectedClientId} onClose={() => setSelectedClientId(null)} />}

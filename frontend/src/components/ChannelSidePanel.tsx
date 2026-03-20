@@ -12,6 +12,7 @@ import {
 import { api } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { SidePanelSkeleton } from '@/components/ui/Skeleton'
 
 interface ChannelSidePanelProps {
   channelId: string
@@ -106,8 +107,14 @@ export function ChannelSidePanel({ channelId, onClose }: ChannelSidePanelProps) 
     return (
       <>
         <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-        <div className="fixed right-0 top-0 h-full w-[400px] bg-white shadow-xl z-50 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <div className="fixed right-0 top-0 h-full w-[400px] bg-white shadow-xl z-50 flex flex-col">
+          <div className="h-14 flex items-center justify-between px-4 border-b border-gray-100 flex-shrink-0">
+            <h2 className="text-sm font-semibold text-gray-900">Edit Channel</h2>
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <SidePanelSkeleton variant="channel" />
         </div>
       </>
     )
@@ -163,7 +170,7 @@ export function ChannelSidePanel({ channelId, onClose }: ChannelSidePanelProps) 
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]"
               placeholder="Enter channel name"
             />
           </div>
@@ -183,14 +190,15 @@ export function ChannelSidePanel({ channelId, onClose }: ChannelSidePanelProps) 
           {/* Type */}
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
-            <select
+            <SearchableSelect
               value={isTrusted ? 'trusted' : 'untrusted'}
-              onChange={(e) => setIsTrusted(e.target.value === 'trusted')}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-            >
-              <option value="trusted">Trusted</option>
-              <option value="untrusted">Untrusted</option>
-            </select>
+              onChange={(val) => setIsTrusted(val === 'trusted')}
+              options={[
+                { value: 'trusted', label: 'Trusted' },
+                { value: 'untrusted', label: 'Untrusted' },
+              ]}
+              hideSearch
+            />
           </div>
 
           {/* SLA */}
@@ -200,7 +208,7 @@ export function ChannelSidePanel({ channelId, onClose }: ChannelSidePanelProps) 
               type="number"
               value={slaMinutes}
               onChange={(e) => handleSlaChange(e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]"
               placeholder="Enter default SLA"
               min="0"
             />
@@ -213,7 +221,7 @@ export function ChannelSidePanel({ channelId, onClose }: ChannelSidePanelProps) 
               type="number"
               value={monthlySpend}
               onChange={(e) => setMonthlySpend(e.target.value)}
-              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]"
               placeholder="Monthly marketing spend"
               min="0"
               step="0.01"

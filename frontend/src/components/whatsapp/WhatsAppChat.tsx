@@ -4,6 +4,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
+import { WhatsAppTabSkeleton } from '@/components/ui/Skeleton'
 import { cn } from '@/lib/utils'
 import { formatTime } from '@/lib/dateUtils'
 import { useMessageTemplates } from '@/hooks/useMessageTemplates'
@@ -82,11 +83,7 @@ export function WhatsAppChat({ messages, isLoading, isSending, onSend, clientInf
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full min-h-[300px]">
-        <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-[#1e3a5f]" />
-      </div>
-    )
+    return <WhatsAppTabSkeleton />
   }
 
   return (

@@ -1,10 +1,15 @@
 /**
- * Unified toast messages for status/stage changes and conversions.
+ * Unified toast messages for status/stage changes, conversions, and errors.
  * Used across Lead, Client, and Case side panels.
  */
 
 import { toast } from 'sonner'
 import { CASE_STAGE_LABELS } from '@/types/mortgage'
+
+// Error toast — displays mutation/action errors consistently
+export const errorToast = {
+  show: (message: string) => toast.error(message),
+}
 
 // Lead toast messages
 export const leadToast = {

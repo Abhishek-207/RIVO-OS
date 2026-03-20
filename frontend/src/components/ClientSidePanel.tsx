@@ -24,6 +24,7 @@ import { ClientExtraDetailsTab } from '@/components/ClientExtraDetailsTab'
 import { ActivityTimeline } from '@/components/activity'
 import { ClientWhatsAppTab } from '@/components/whatsapp/ClientWhatsAppTab'
 import { SLACountdown } from '@/components/SLACountdown'
+import { SidePanelSkeleton } from '@/components/ui/Skeleton'
 import { useAuth } from '@/contexts/AuthContext'
 import type {
   ResidencyType,
@@ -37,7 +38,11 @@ import type {
 } from '@/types/mortgage'
 import { cn } from '@/lib/utils'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { DateInput } from '@/components/ui/DateInput'
+import { SidePanelTabs } from '@/components/ui/SidePanelTabs'
+import type { SidePanelTab } from '@/components/ui/SidePanelTabs'
 import type { SearchableSelectOption } from '@/components/ui/SearchableSelect'
+
 
 interface ClientSidePanelProps {
   clientId: string
@@ -47,6 +52,13 @@ interface ClientSidePanelProps {
 }
 
 type TabType = 'details' | 'extra_details' | 'documents' | 'activity' | 'whatsapp'
+
+const CLIENT_TABS: SidePanelTab<TabType>[] = [
+  { value: 'details', label: 'Details' },
+  { value: 'documents', label: 'Documents' },
+  { value: 'whatsapp', label: 'WhatsApp', activeColor: '#00A884' },
+  { value: 'activity', label: 'Activity' },
+]
 
 const statusColors: Record<ClientStatus, string> = {
   active: 'bg-green-100 text-green-700',
@@ -100,35 +112,15 @@ const UAE_BANKS = [
 
 // Phone country codes and validation imported from shared utility
 import {
-  COUNTRY_CODES,
-  findCountryCode,
+  PHONE_CODES,
   validatePhoneDigits,
   assemblePhone,
   parsePhone,
   getExpectedDigits,
+  getExample,
 } from '@/lib/phoneUtils'
-
-const NATIONALITY_OPTIONS = [
-  'Afghan', 'Albanian', 'Algerian', 'American', 'Andorran', 'Angolan', 'Argentine', 'Armenian',
-  'Australian', 'Austrian', 'Azerbaijani', 'Bahraini', 'Bangladeshi', 'Belarusian', 'Belgian',
-  'Bolivian', 'Bosnian', 'Brazilian', 'British', 'Bulgarian', 'Cambodian', 'Cameroonian',
-  'Canadian', 'Chilean', 'Chinese', 'Colombian', 'Congolese', 'Costa Rican', 'Croatian', 'Cuban',
-  'Cypriot', 'Czech', 'Danish', 'Dominican', 'Dutch', 'Ecuadorian', 'Egyptian', 'Emirati',
-  'Eritrean', 'Estonian', 'Ethiopian', 'Filipino', 'Finnish', 'French', 'Georgian', 'German',
-  'Ghanaian', 'Greek', 'Guatemalan', 'Haitian', 'Honduran', 'Hungarian', 'Icelandic', 'Indian',
-  'Indonesian', 'Iranian', 'Iraqi', 'Irish', 'Israeli', 'Italian', 'Ivorian', 'Jamaican',
-  'Japanese', 'Jordanian', 'Kazakh', 'Kenyan', 'Korean (North)', 'Korean (South)', 'Kuwaiti',
-  'Kyrgyz', 'Laotian', 'Latvian', 'Lebanese', 'Libyan', 'Lithuanian', 'Luxembourgish',
-  'Macedonian', 'Malaysian', 'Maldivian', 'Maltese', 'Mauritanian', 'Mauritian', 'Mexican',
-  'Moldovan', 'Mongolian', 'Montenegrin', 'Moroccan', 'Mozambican', 'Myanmar', 'Namibian',
-  'Nepalese', 'New Zealander', 'Nicaraguan', 'Nigerian', 'Norwegian', 'Omani', 'Pakistani',
-  'Palestinian', 'Panamanian', 'Paraguayan', 'Peruvian', 'Polish', 'Portuguese', 'Qatari',
-  'Romanian', 'Russian', 'Rwandan', 'Saudi', 'Senegalese', 'Serbian', 'Singaporean', 'Slovak',
-  'Slovenian', 'Somali', 'South African', 'Spanish', 'Sri Lankan', 'Sudanese', 'Swedish',
-  'Swiss', 'Syrian', 'Taiwanese', 'Tajik', 'Tanzanian', 'Thai', 'Tunisian', 'Turkish', 'Turkmen',
-  'Ugandan', 'Ukrainian', 'Uruguayan', 'Uzbek', 'Venezuelan', 'Vietnamese', 'Yemeni', 'Zambian',
-  'Zimbabwean',
-]
+import { NATIONALITIES } from '@/lib/countryData'
+import { CountryFlag } from '@/components/ui/CountryFlag'
 
 export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: viewOnlyProp }: ClientSidePanelProps) {
   const { can } = useAuth()
@@ -507,8 +499,14 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
   if (!isCreateMode && isLoading) {
     return (
       <SidePanelWrapper onClose={onClose}>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        <div className="px-6 py-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Client</h2>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <SidePanelSkeleton variant="client" />
         </div>
       </SidePanelWrapper>
     )
@@ -557,19 +555,19 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                   Not Proceeding
                 </span>
               ) : (
-                <select
-                  value={client.status}
-                  onChange={(e) => handleStatusChange(e.target.value as ClientStatus)}
-                  disabled={changeStatusMutation.isPending || viewOnly}
-                  className={cn(
-                    'px-2 py-0.5 text-xs font-medium rounded border-0 focus:outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
-                    statusColors[client.status]
-                  )}
-                >
-                  <option value="active">Active</option>
-                  <option value="declined">Declined</option>
-                  <option value="not_proceeding">Not Proceeding</option>
-                </select>
+                <SearchableSelect
+                    value={client.status}
+                    onChange={(val) => handleStatusChange(val as ClientStatus)}
+                    options={[
+                      { value: 'active', label: 'Active' },
+                      { value: 'declined', label: 'Declined' },
+                      { value: 'not_proceeding', label: 'Not Proceeding' },
+                    ]}
+                    disabled={changeStatusMutation.isPending || viewOnly}
+                    size="sm"
+                    hideSearch
+                    className={cn('border-0 font-medium w-auto', statusColors[client.status])}
+                  />
               )
             )}
           </div>
@@ -613,52 +611,8 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
 
         {/* Tabs - Only show for edit mode */}
         {!isCreateMode && (
-          <div className="flex mt-4 -mb-px">
-            <button
-              onClick={() => setActiveTab('details')}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-                activeTab === 'details'
-                  ? 'text-[#1e3a5f] border-[#1e3a5f]'
-                  : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
-              )}
-            >
-              Details
-            </button>
-            {/* Extra Details tab hidden for now — code retained */}
-            <button
-              onClick={() => setActiveTab('documents')}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-                activeTab === 'documents'
-                  ? 'text-[#1e3a5f] border-[#1e3a5f]'
-                  : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
-              )}
-            >
-              Documents
-            </button>
-            <button
-              onClick={() => setActiveTab('whatsapp')}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-                activeTab === 'whatsapp'
-                  ? 'text-[#00A884] border-[#00A884]'
-                  : 'text-gray-500 border-transparent hover:text-[#00A884]'
-              )}
-            >
-              WhatsApp
-            </button>
-            <button
-              onClick={() => setActiveTab('activity')}
-              className={cn(
-                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-                activeTab === 'activity'
-                  ? 'text-[#1e3a5f] border-[#1e3a5f]'
-                  : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
-              )}
-            >
-              Activity
-            </button>
+          <div className="mt-4">
+            <SidePanelTabs tabs={CLIENT_TABS} value={activeTab} onChange={setActiveTab} />
           </div>
         )}
       </div>
@@ -674,32 +628,31 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="First Name *">
                   <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                 </FormField>
                 <FormField label="Last Name *">
                   <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                 </FormField>
                 <FormField label="Phone *">
                   <div className="flex gap-1">
-                    <div className="w-24 shrink-0">
+                    <div className="w-[7.5rem] shrink-0">
                       <SearchableSelect
                         value={phoneCountryCode}
                         onChange={setPhoneCountryCode}
-                        options={COUNTRY_CODES.map(c => ({ value: c.code, label: c.label }))}
+                        options={PHONE_CODES.map(c => ({ value: c.code, label: c.label, icon: <CountryFlag iso={c.iso} size={18} /> }))}
                         displayValue={(opt) => opt.value}
                         placeholder="+971"
                         searchPlaceholder="Search country..."
-                        disabled={!isCreateMode && client?.phone_locked}
-                        size="sm"
-                        popoverMinWidth={220}
+                        disabled={!isCreateMode}
+                        popoverMinWidth={240}
                       />
                     </div>
                     <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder={findCountryCode(phoneCountryCode)?.example ?? ''}
+                      placeholder={getExample(phoneCountryCode)}
                       maxLength={getExpectedDigits(phoneCountryCode).max + 1}
-                      disabled={!isCreateMode && client?.phone_locked}
-                      className="flex-1 min-w-0 h-9 px-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:bg-gray-50 disabled:text-gray-500" />
+                      disabled={!isCreateMode}
+                      className="flex-1 min-w-0 h-9 px-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] disabled:bg-gray-50 disabled:text-gray-500" />
                   </div>
                   {phone && validatePhoneDigits(phone, phoneCountryCode) && (
                     <p className="text-xs text-amber-600 mt-1">{validatePhoneDigits(phone, phoneCountryCode)}</p>
@@ -707,32 +660,35 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                 </FormField>
                 <FormField label="Email *">
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                 </FormField>
                 <FormField label="Date of Birth *">
-                  <input type="date" value={dob} onChange={(e) => setDob(e.target.value)} max={getTodayISO()}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                  <DateInput value={dob} onChange={setDob} max={getTodayISO()} />
                 </FormField>
                 <FormField label="Nationality *">
                   <SearchableSelect
                     value={nationality}
                     onChange={setNationality}
-                    options={NATIONALITY_OPTIONS.map(opt => ({ value: opt, label: opt }))}
+                    options={NATIONALITIES.map(n => ({ value: n.value, label: n.label, icon: <CountryFlag iso={n.iso} size={18} /> }))}
                     placeholder="Select..."
                     searchPlaceholder="Search nationality..."
                   />
                 </FormField>
                 <FormField label="Residency *">
-                  <select value={residency} onChange={(e) => setResidency(e.target.value as ResidencyType)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    {residencyOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={residency}
+                    onChange={(val) => setResidency(val as ResidencyType)}
+                    options={residencyOptions}
+                    hideSearch
+                  />
                 </FormField>
                 <FormField label="Employment *">
-                  <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value as EmploymentType)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    {employmentOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={employmentType}
+                    onChange={(val) => setEmploymentType(val as EmploymentType)}
+                    options={employmentOptions}
+                    hideSearch
+                  />
                 </FormField>
                 <FormField label="Source *" className="col-span-2">
                   <TrustedSourceSelector
@@ -751,12 +707,12 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
               <div className="flex items-center gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" checked={applicationType === 'single'} onChange={() => setApplicationType('single')}
-                    className="w-4 h-4 text-[#1e3a5f] focus:ring-[#1e3a5f]" />
+                    className="w-4 h-4 text-[#1e3a5f]" />
                   <span className="text-sm text-gray-700">Individual</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" checked={applicationType === 'joint'} onChange={() => setApplicationType('joint')}
-                    className="w-4 h-4 text-[#1e3a5f] focus:ring-[#1e3a5f]" />
+                    className="w-4 h-4 text-[#1e3a5f]" />
                   <span className="text-sm text-gray-700">Co-borrower</span>
                 </label>
               </div>
@@ -767,30 +723,30 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                   <div className="grid grid-cols-2 gap-4">
                     <FormField label="First Name *">
                       <input type="text" value={coBorrowerFirstName} onChange={(e) => setCoBorrowerFirstName(e.target.value)}
-                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                     </FormField>
                     <FormField label="Last Name *">
                       <input type="text" value={coBorrowerLastName} onChange={(e) => setCoBorrowerLastName(e.target.value)}
-                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                     </FormField>
                     <FormField label="Phone *">
                       <div className="flex gap-2">
-                        <div className="w-24 shrink-0">
+                        <div className="w-[7.5rem] shrink-0">
                           <SearchableSelect
                             value={coBorrowerPhoneCountryCode}
                             onChange={setCoBorrowerPhoneCountryCode}
-                            options={COUNTRY_CODES.map(c => ({ value: c.code, label: c.label }))}
+                            options={PHONE_CODES.map(c => ({ value: c.code, label: c.label, icon: <CountryFlag iso={c.iso} size={16} /> }))}
                             displayValue={(opt) => opt.value}
                             placeholder="+971"
                             searchPlaceholder="Search country..."
                             size="sm"
-                            popoverMinWidth={220}
+                            popoverMinWidth={240}
                           />
                         </div>
                         <input type="tel" value={coBorrowerPhone} onChange={(e) => setCoBorrowerPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                          placeholder={findCountryCode(coBorrowerPhoneCountryCode)?.example ?? ''}
+                          placeholder={getExample(coBorrowerPhoneCountryCode)}
                           maxLength={getExpectedDigits(coBorrowerPhoneCountryCode).max + 1}
-                          className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                          className="flex-1 h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                       </div>
                       {coBorrowerPhone && validatePhoneDigits(coBorrowerPhone, coBorrowerPhoneCountryCode) && (
                         <p className="text-xs text-amber-600 mt-1">{validatePhoneDigits(coBorrowerPhone, coBorrowerPhoneCountryCode)}</p>
@@ -798,11 +754,11 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                     </FormField>
                     <FormField label="Email *">
                       <input type="email" value={coBorrowerEmail} onChange={(e) => setCoBorrowerEmail(e.target.value)}
-                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                     </FormField>
                     <FormField label="Monthly Salary (AED) *" className="col-span-2">
                       <input type="text" inputMode="numeric" value={coBorrowerSalary} onChange={(e) => setCoBorrowerSalary(sanitizeAmount(e.target.value))}
-                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                        className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                     </FormField>
                   </div>
                 </div>
@@ -815,12 +771,12 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Monthly Salary (AED) *">
                   <input type="text" inputMode="numeric" value={monthlySalary} onChange={(e) => setMonthlySalary(sanitizeAmount(e.target.value))}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                 </FormField>
                 <FormField label="Total Addbacks (AED)">
                   <input type="text" inputMode="numeric" value={totalAddbacks} onChange={(e) => setTotalAddbacks(sanitizeAmount(e.target.value))}
                     placeholder="Rental income, bonuses, etc."
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                 </FormField>
               </div>
 
@@ -835,13 +791,20 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
                   <div className="space-y-2">
                     {liabilities.map((liability, index) => (
                       <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-                        <select value={liability.type} onChange={(e) => updateLiability(index, 'type', e.target.value)}
-                          className="h-8 px-2 text-xs border border-gray-200 rounded-md focus:outline-none bg-white shrink-0">
-                          <option value="cc">Credit Card</option>
-                          <option value="auto">Auto Loan</option>
-                          <option value="personal">Personal Loan</option>
-                          <option value="mortgage">Mortgage</option>
-                        </select>
+                        <div className="w-32 shrink-0">
+                          <SearchableSelect
+                            value={liability.type}
+                            onChange={(val) => updateLiability(index, 'type', val)}
+                            options={[
+                              { value: 'cc', label: 'Credit Card' },
+                              { value: 'auto', label: 'Auto Loan' },
+                              { value: 'personal', label: 'Personal Loan' },
+                              { value: 'mortgage', label: 'Mortgage' },
+                            ]}
+                            size="sm"
+                            hideSearch
+                          />
+                        </div>
                         {liability.type === 'cc' && (
                           <div className="w-32 shrink-0">
                             <SearchableSelect
@@ -886,43 +849,51 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Property Details</h3>
               <div className="grid grid-cols-3 gap-3">
                 <FormField label="Category">
-                  <select value={propertyCategory} onChange={(e) => setPropertyCategory(e.target.value as PropertyCategory)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    {propertyCategoryOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={propertyCategory}
+                    onChange={(val) => setPropertyCategory(val as PropertyCategory)}
+                    options={propertyCategoryOptions}
+                    hideSearch
+                  />
                 </FormField>
                 <FormField label="Type">
-                  <select value={propertyType} onChange={(e) => setPropertyType(e.target.value as PropertyType)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    {propertyTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={propertyType}
+                    onChange={(val) => setPropertyType(val as PropertyType)}
+                    options={propertyTypeOptions}
+                    hideSearch
+                  />
                 </FormField>
                 <FormField label="Emirate">
-                  <select value={emirate} onChange={(e) => setEmirate(e.target.value as Emirate)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    {emirateOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={emirate}
+                    onChange={(val) => setEmirate(val as Emirate)}
+                    options={emirateOptions}
+                    hideSearch
+                  />
                 </FormField>
                 <FormField label="Transaction">
-                  <select value={transactionType} onChange={(e) => setTransactionType(e.target.value as TransactionType)}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                    {transactionTypeOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={transactionType}
+                    onChange={(val) => setTransactionType(val as TransactionType)}
+                    options={transactionTypeOptions}
+                    hideSearch
+                  />
                 </FormField>
                 <FormField label="Property Value (AED) *">
                   <input type="text" inputMode="numeric" value={propertyValue} onChange={(e) => setPropertyValue(sanitizeAmount(e.target.value))}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                 </FormField>
                 <FormField label="First Property?">
                   <div className="flex items-center gap-4 h-9">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="radio" checked={isFirstProperty} onChange={() => setIsFirstProperty(true)}
-                        className="w-4 h-4 text-[#1e3a5f] focus:ring-[#1e3a5f]" />
+                        className="w-4 h-4 text-[#1e3a5f]" />
                       <span className="text-sm text-gray-700">Yes</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="radio" checked={!isFirstProperty} onChange={() => setIsFirstProperty(false)}
-                        className="w-4 h-4 text-[#1e3a5f] focus:ring-[#1e3a5f]" />
+                        className="w-4 h-4 text-[#1e3a5f]" />
                       <span className="text-sm text-gray-700">No</span>
                     </label>
                   </div>
@@ -936,23 +907,31 @@ export function ClientSidePanel({ clientId, onClose, hideCreateCase, viewOnly: v
               <div className="grid grid-cols-2 gap-3">
                 <FormField label="Loan Amount (AED) *">
                   <input type="text" inputMode="numeric" value={loanAmount} onChange={(e) => setLoanAmount(sanitizeAmount(e.target.value))}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]" />
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]" />
                 </FormField>
                 <FormField label="Tenure">
                   <div className="flex items-center gap-2">
-                    <select value={tenureYears} onChange={(e) => setTenureYears(e.target.value)}
-                      className="w-16 h-9 px-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                      {Array.from({ length: 25 }, (_, i) => i + 1).map(y => (
-                        <option key={y} value={String(y)}>{y}</option>
-                      ))}
-                    </select>
+                    <div className="w-16">
+                      <SearchableSelect
+                        value={tenureYears}
+                        onChange={setTenureYears}
+                        options={Array.from({ length: 25 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))}
+                        size="sm"
+                        popoverMinWidth={30}
+                        hideSearch
+                      />
+                    </div>
                     <span className="text-xs text-gray-500">yrs</span>
-                    <select value={tenureMonths} onChange={(e) => setTenureMonths(e.target.value)}
-                      className="w-14 h-9 px-2 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white">
-                      {Array.from({ length: 12 }, (_, i) => i).map(m => (
-                        <option key={m} value={String(m)}>{m}</option>
-                      ))}
-                    </select>
+                    <div className="w-16">
+                      <SearchableSelect
+                        value={tenureMonths}
+                        onChange={setTenureMonths}
+                        options={Array.from({ length: 12 }, (_, i) => ({ value: String(i), label: String(i) }))}
+                        size="sm"
+                        popoverMinWidth={30}
+                        hideSearch
+                      />
+                    </div>
                     <span className="text-xs text-gray-500">mo</span>
                   </div>
                 </FormField>

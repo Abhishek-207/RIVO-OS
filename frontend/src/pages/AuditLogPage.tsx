@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, AlertCircle, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react'
+import { AlertCircle, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react'
 import { useAuditLogs } from '@/hooks/useAudit'
 import { Pagination } from '@/components/Pagination'
 import {
@@ -7,7 +7,9 @@ import {
   TableCard,
   TableContainer,
 } from '@/components/ui/TablePageLayout'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
 import { cn } from '@/lib/utils'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { formatDateTime } from '@/lib/dateUtils'
 import type { AuditAction, AuditLogQueryParams, AuditLogEntry, ChangeDisplay, ChangeDisplaySingle } from '@/types/audit'
 import { AUDIT_ACTION_LABELS, TABLE_NAME_LABELS } from '@/types/audit'
@@ -175,72 +177,72 @@ export function AuditLogPage() {
       </div>
 
       <div className="px-6 pb-3 flex items-center gap-3">
-        <select
-          value={tableName}
-          onChange={e => { setTableName(e.target.value); handleFilterChange(e.target.value, action) }}
-          className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
-        >
-          <option value="">All Tables</option>
-          {Object.entries(TABLE_NAME_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-        <select
-          value={action}
-          onChange={e => { setAction(e.target.value as AuditAction | ''); handleFilterChange(tableName, e.target.value) }}
-          className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
-        >
-          <option value="">All Actions</option>
-          {Object.entries(AUDIT_ACTION_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
+        <div className="w-48">
+          <SearchableSelect
+            value={tableName}
+            onChange={(val) => { setTableName(val); handleFilterChange(val, action) }}
+            options={[
+              { value: '', label: 'All Tables' },
+              ...Object.entries(TABLE_NAME_LABELS).map(([v, l]) => ({ value: v, label: l })),
+            ]}
+            size="sm"
+            hideSearch
+          />
+        </div>
+        <div className="w-40">
+          <SearchableSelect
+            value={action}
+            onChange={(val) => { setAction(val as AuditAction | ''); handleFilterChange(tableName, val) }}
+            options={[
+              { value: '', label: 'All Actions' },
+              ...Object.entries(AUDIT_ACTION_LABELS).map(([v, l]) => ({ value: v, label: l })),
+            ]}
+            size="sm"
+            hideSearch
+          />
+        </div>
       </div>
 
-      <TableCard>
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-          </div>
-        ) : error ? (
+      {error ? (
+        <TableCard>
           <div className="flex items-center justify-center py-12 text-red-600">
             <AlertCircle className="w-4 h-4 mr-2" />
             <span className="text-xs">Failed to load audit logs</span>
           </div>
-        ) : (
-          <>
-            <TableContainer isEmpty={!data?.items.length} emptyMessage="No audit logs">
-              <table className="w-full table-fixed">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="w-8 pb-3" />
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">When</th>
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Who</th>
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Table</th>
-                    <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Changes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data?.items.map(entry => (
-                    <AuditRow key={entry.id} entry={entry} />
-                  ))}
-                </tbody>
-              </table>
-            </TableContainer>
+        </TableCard>
+      ) : (
+        <TableCard>
+          <TableContainer isEmpty={!isLoading && !data?.items.length} emptyMessage="No audit logs">
+            <table className="w-full table-fixed">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="w-8 pb-3" />
+                  <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">When</th>
+                  <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Who</th>
+                  <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                  <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Table</th>
+                  <th className="w-1/5 text-left pb-3 text-xs font-medium text-gray-400 uppercase tracking-wider">Changes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading ? <TableRowsSkeleton rows={10} columns={6} /> : data?.items.map(entry => (
+                  <AuditRow key={entry.id} entry={entry} />
+                ))}
+              </tbody>
+            </table>
+          </TableContainer>
 
-            {data && data.total_pages > 1 && (
-              <Pagination
-                currentPage={data.page}
-                totalPages={data.total_pages}
-                totalItems={data.total}
-                onPageChange={p => setFilters({ ...filters, page: p })}
-                itemLabel="entries"
-              />
-            )}
-          </>
-        )}
-      </TableCard>
+          {!isLoading && data && data.total_pages > 1 && (
+            <Pagination
+              currentPage={data.page}
+              totalPages={data.total_pages}
+              totalItems={data.total}
+              onPageChange={p => setFilters({ ...filters, page: p })}
+              itemLabel="entries"
+            />
+          )}
+        </TableCard>
+      )}
     </TablePageLayout>
   )
 }

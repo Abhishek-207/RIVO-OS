@@ -11,11 +11,11 @@ import {
   TablePageLayout,
   TableCard,
   TableContainer,
-  PageLoading,
   PageError,
   PageHeader,
   SearchInput,
 } from '@/components/ui/TablePageLayout'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
 import {
   useMessageTemplates,
   type MessageTemplate,
@@ -58,7 +58,6 @@ export function TemplateListReadOnly() {
   }
 
 
-  if (isLoading) return <PageLoading />
   if (error) return <PageError entityName="templates" message={(error as Error).message} />
 
   return (
@@ -82,7 +81,7 @@ export function TemplateListReadOnly() {
 
       {/* Templates Table */}
       <TableCard>
-        <TableContainer isEmpty={paginatedTemplates.length === 0} emptyMessage="No templates found">
+        <TableContainer isEmpty={!isLoading && paginatedTemplates.length === 0} emptyMessage="No templates found">
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-gray-100">
@@ -93,7 +92,7 @@ export function TemplateListReadOnly() {
               </tr>
             </thead>
             <tbody>
-              {paginatedTemplates.map((template) => (
+              {isLoading ? <TableRowsSkeleton rows={8} columns={4} /> : paginatedTemplates.map((template) => (
                 <tr
                   key={template.id}
                   onClick={() => setPreviewTemplate(template)}

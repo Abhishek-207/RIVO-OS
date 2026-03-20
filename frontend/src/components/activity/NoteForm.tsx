@@ -3,7 +3,9 @@
  */
 
 import { useState } from 'react'
-import { Loader2, Calendar, Clock, X } from 'lucide-react'
+import { Loader2, X, Calendar } from 'lucide-react'
+import { DateInput } from '@/components/ui/DateInput'
+import { TimeInput } from '@/components/ui/TimeInput'
 import { useCreateNote, useUpdateNote } from '@/hooks/useAudit'
 import { getTodayISO } from '@/lib/dateUtils'
 import type { NotableType, NoteData } from '@/types/audit'
@@ -93,7 +95,7 @@ export function NoteForm({ recordType, recordId, note, onSuccess, onCancel }: No
           onChange={(e) => setText(e.target.value)}
           placeholder="Write a note..."
           rows={3}
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] resize-none"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#1e3a5f] resize-none"
           disabled={isPending}
           autoFocus
         />
@@ -134,30 +136,20 @@ export function NoteForm({ recordType, recordId, note, onSuccess, onCancel }: No
             <div className="flex gap-3">
               <div className="flex-1">
                 <label className="block text-xs text-gray-500 mb-1">Date</label>
-                <div className="relative">
-                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="date"
-                    value={reminderDate}
-                    onChange={(e) => setReminderDate(e.target.value)}
-                    min={getTodayISO()}
-                    className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
-                    disabled={isPending}
-                  />
-                </div>
+                <DateInput
+                  value={reminderDate}
+                  onChange={setReminderDate}
+                  min={getTodayISO()}
+                  disabled={isPending}
+                />
               </div>
               <div className="flex-1">
                 <label className="block text-xs text-gray-500 mb-1">Time</label>
-                <div className="relative">
-                  <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="time"
-                    value={reminderTime}
-                    onChange={(e) => setReminderTime(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
-                    disabled={isPending}
-                  />
-                </div>
+                <TimeInput
+                  value={reminderTime}
+                  onChange={setReminderTime}
+                  disabled={isPending}
+                />
               </div>
             </div>
           </div>
@@ -185,7 +177,7 @@ export function NoteForm({ recordType, recordId, note, onSuccess, onCancel }: No
           className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1e3a5f] text-white text-sm font-medium rounded-lg hover:bg-[#2d4a6f]"
         >
           {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-          {isEditing ? 'Save Changes' : 'Add Note'}
+          {isEditing ? 'Save Changes' : showReminder ? 'Add Note & Reminder' : 'Add Note'}
         </button>
       </div>
     </form>

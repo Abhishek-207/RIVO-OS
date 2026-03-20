@@ -3,12 +3,14 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Search } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { cn } from '@/lib/utils'
 import { formatRelativeDate } from '@/lib/dateUtils'
 import { Pagination } from '@/components/Pagination'
-import { TablePageLayout, TableCard, TableContainer, PageLoading, PageError, StatusErrorToast } from '@/components/ui/TablePageLayout'
+import { TablePageLayout, TableCard, TableContainer, PageError, StatusErrorToast, SearchInput, StatusTabs } from '@/components/ui/TablePageLayout'
+import { TableRowsSkeleton } from '@/components/ui/Skeleton'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import {
   useMessageTemplates,
   useDeleteTemplate,
@@ -87,7 +89,6 @@ export function TemplateList() {
     return `${prefix}: ${value}`
   }
 
-  if (isLoading) return <PageLoading />
   if (error) return <PageError entityName="templates" message={(error as Error).message} />
 
   return (
@@ -108,41 +109,25 @@ export function TemplateList() {
         </div>
 
         <div className="flex items-center gap-4 mt-4">
-          <div className="relative w-48">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search templates..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full h-8 pl-8 pr-3 text-xs border border-gray-200 rounded-lg focus:outline-none"
+          <SearchInput
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search templates..."
+          />
+          <StatusTabs
+            tabs={STATUS_TABS}
+            value={statusFilter}
+            onChange={(val) => { setStatusFilter(val); setCurrentPage(1) }}
+          />
+          <div className="w-40">
+            <SearchableSelect
+              value={categoryFilter}
+              onChange={(val) => { setCategoryFilter(val as '' | 'system' | 'general'); setCurrentPage(1) }}
+              options={TYPE_TABS.map((tab) => ({ value: tab.value, label: tab.label }))}
+              size="sm"
+              hideSearch
             />
           </div>
-          <div className="flex items-center gap-1 border-b border-gray-200">
-            {STATUS_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => { setStatusFilter(tab.value); setCurrentPage(1) }}
-                className={cn(
-                  'px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors',
-                  statusFilter === tab.value
-                    ? 'border-[#1e3a5f] text-[#1e3a5f]'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => { setCategoryFilter(e.target.value as '' | 'system' | 'general'); setCurrentPage(1) }}
-            className="h-8 px-3 text-xs border border-gray-200 rounded-lg focus:outline-none bg-white"
-          >
-            {TYPE_TABS.map((tab) => (
-              <option key={tab.value} value={tab.value}>{tab.label}</option>
-            ))}
-          </select>
         </div>
       </div>
 
@@ -151,7 +136,7 @@ export function TemplateList() {
       )}
 
       <TableCard>
-        <TableContainer isEmpty={paginatedTemplates.length === 0} emptyMessage="No templates found">
+        <TableContainer isEmpty={!isLoading && paginatedTemplates.length === 0} emptyMessage="No templates found">
           <table className="w-full table-fixed">
             <thead>
               <tr className="border-b border-gray-100">
@@ -163,7 +148,7 @@ export function TemplateList() {
               </tr>
             </thead>
             <tbody>
-              {paginatedTemplates.map((template) => {
+              {isLoading ? <TableRowsSkeleton rows={8} columns={5} /> : paginatedTemplates.map((template) => {
                 const triggerLabel = getTriggerLabel(template)
                 return (
                   <tr

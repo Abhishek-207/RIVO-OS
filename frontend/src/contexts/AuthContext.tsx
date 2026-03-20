@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import { useQueryClient } from '@tanstack/react-query'
 import type { User, AuthContextType, Permissions, Resource, LoginResponse } from '@/types/auth'
 import { API_BASE_URL } from '@/config/api'
+import { ApiError, extractApiError } from '@/lib/api'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -61,8 +62,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       })
 
       if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.error || 'Invalid username or password')
+        let data
+        try {
+          data = await response.json()
+        } catch {
+          data = null
+        }
+        const apiError = new ApiError(response.status, response.statusText, data)
+        throw new Error(extractApiError(apiError, 'Invalid username or password'))
       }
 
       const auth: LoginResponse = await response.json()

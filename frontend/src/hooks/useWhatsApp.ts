@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 
 export interface WhatsAppMessage {
   id: string
@@ -60,20 +60,11 @@ export function useSendWhatsAppMessage() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ clientId, message }: { clientId: string; message: string }) => {
-      try {
-        return await api.post<SendMessageResponse>('/whatsapp/send/', {
-          client_id: clientId,
-          message,
-        })
-      } catch (error) {
-        if (error instanceof ApiError) {
-          const errorData = error.data as { error?: string }
-          throw new Error(errorData?.error || 'Failed to send message')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ clientId, message }: { clientId: string; message: string }) =>
+      withApiError(
+        () => api.post<SendMessageResponse>('/whatsapp/send/', { client_id: clientId, message }),
+        'Failed to send message',
+      ),
     onSuccess: (_data, variables) => {
       // Invalidate the messages query to refetch
       queryClient.refetchQueries({ queryKey: ['whatsapp-messages', variables.clientId] })

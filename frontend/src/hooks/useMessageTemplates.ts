@@ -3,7 +3,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 
 export interface MessageTemplate {
   id: string
@@ -178,16 +178,8 @@ export function useCreateTemplate() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: CreateTemplateData) => {
-      try {
-        return await api.post<MessageTemplate>('/message-templates/', data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { detail?: string })?.detail || 'Failed to create template')
-        }
-        throw error
-      }
-    },
+    mutationFn: (data: CreateTemplateData) =>
+      withApiError(() => api.post<MessageTemplate>('/message-templates/', data), 'Failed to create template'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['message-templates'] })
     },
@@ -201,16 +193,8 @@ export function useUpdateTemplate() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateTemplateData }) => {
-      try {
-        return await api.patch<MessageTemplate>(`/message-templates/${id}/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { detail?: string })?.detail || 'Failed to update template')
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ id, data }: { id: string; data: UpdateTemplateData }) =>
+      withApiError(() => api.patch<MessageTemplate>(`/message-templates/${id}/`, data), 'Failed to update template'),
     onSuccess: (_, variables) => {
       queryClient.refetchQueries({ queryKey: ['message-templates'] })
       queryClient.refetchQueries({ queryKey: ['message-template', variables.id] })
@@ -225,16 +209,8 @@ export function useDeleteTemplate() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      try {
-        await api.delete(`/message-templates/${id}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error((error.data as { detail?: string })?.detail || 'Failed to delete template')
-        }
-        throw error
-      }
-    },
+    mutationFn: (id: string) =>
+      withApiError(() => api.delete(`/message-templates/${id}/`), 'Failed to delete template'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['message-templates'] })
     },

@@ -8,9 +8,12 @@ import { useState, useEffect, useRef } from 'react'
 import { X, AlertCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { SidePanelTabs } from '@/components/ui/SidePanelTabs'
+import type { SidePanelTab } from '@/components/ui/SidePanelTabs'
 import { caseToast, clientToast } from '@/lib/toastMessages'
 import { FormField } from '@/components/ui/FormField'
 import { SidePanelWrapper } from '@/components/ui/SidePanelWrapper'
+import { SidePanelSkeleton } from '@/components/ui/Skeleton'
 import {
   useCase,
   useCreateCase,
@@ -52,6 +55,12 @@ interface CaseSidePanelProps {
 
 type CaseTabType = 'details' | 'documents' | 'activity'
 
+const CASE_TABS: SidePanelTab<CaseTabType>[] = [
+  { value: 'details', label: 'Details' },
+  { value: 'documents', label: 'Bank Forms' },
+  { value: 'activity', label: 'Activity' },
+]
+
 const stageColors: Record<CaseStage, string> = {
   // Active stages (main flow)
   processing: 'bg-blue-100 text-blue-700',
@@ -92,9 +101,17 @@ export function CaseSidePanel({ caseId, isOpen, onClose, preselectedClientId }: 
       {isCreateMode ? (
         <CreateCaseContent onClose={onClose} preselectedClientId={preselectedClientId} />
       ) : isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-        </div>
+        <>
+          <div className="px-6 py-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Case</h2>
+            <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <SidePanelSkeleton variant="case" />
+          </div>
+        </>
       ) : error ? (
         <div className="flex-1 flex flex-col items-center justify-center">
           <AlertCircle className="h-12 w-12 text-red-400 mb-4" />
@@ -331,25 +348,23 @@ function CreateCaseContent({ onClose, preselectedClientId }: CreateCaseContentPr
               <BankDropdown value={bank} onChange={setBank} banks={banks} />
             </FormField>
             <FormField label="Mortgage Type *">
-              <select
+              <SearchableSelect
                 value={mortgageType}
-                onChange={(e) => setMortgageType(e.target.value as MortgageType)}
-                className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-              >
-                {Object.entries(MORTGAGE_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
+                onChange={(val) => setMortgageType(val as MortgageType)}
+                options={Object.entries(MORTGAGE_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
+                hideSearch
+              />
             </FormField>
             <FormField label="Rate Type *">
-              <select
+              <SearchableSelect
                 value={rateType}
-                onChange={(e) => setRateType(e.target.value as 'fixed' | 'variable')}
-                className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-              >
-                <option value="fixed">Fixed</option>
-                <option value="variable">Variable</option>
-              </select>
+                onChange={(val) => setRateType(val as 'fixed' | 'variable')}
+                options={[
+                  { value: 'fixed', label: 'Fixed' },
+                  { value: 'variable', label: 'Variable' },
+                ]}
+                hideSearch
+              />
             </FormField>
             <FormField label="Rate (%) *">
               <input
@@ -358,21 +373,20 @@ function CreateCaseContent({ onClose, preselectedClientId }: CreateCaseContentPr
                 value={rate}
                 onChange={(e) => setRate(sanitizeAmount(e.target.value))}
                 placeholder="e.g., 4.99"
-                className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f]"
+                className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f]"
               />
             </FormField>
             {rateType === 'fixed' && (
               <FormField label="Fixed Period">
-                <select
+                <SearchableSelect
                   value={fixedPeriod}
-                  onChange={(e) => setFixedPeriod(e.target.value as FixedPeriod | '')}
-                  className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white"
-                >
-                  <option value="">Select period...</option>
-                  {Object.entries(FIXED_PERIOD_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setFixedPeriod(val as FixedPeriod | '')}
+                  options={[
+                    { value: '', label: 'Select period...' },
+                    ...Object.entries(FIXED_PERIOD_LABELS).map(([value, label]) => ({ value, label })),
+                  ]}
+                  hideSearch
+                />
               </FormField>
             )}
           </div>
@@ -571,40 +585,8 @@ function EditCaseContent({ caseData, onClose }: { caseData: CaseData; onClose: (
         )}
 
         {/* Tabs */}
-        <div className="flex mt-4 -mb-px">
-          <button
-            onClick={() => setActiveTab('details')}
-            className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'details'
-                ? 'text-[#1e3a5f] border-[#1e3a5f]'
-                : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
-            )}
-          >
-            Details
-          </button>
-          <button
-            onClick={() => setActiveTab('documents')}
-            className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'documents'
-                ? 'text-[#1e3a5f] border-[#1e3a5f]'
-                : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
-            )}
-          >
-            Bank Forms
-          </button>
-          <button
-            onClick={() => setActiveTab('activity')}
-            className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-              activeTab === 'activity'
-                ? 'text-[#1e3a5f] border-[#1e3a5f]'
-                : 'text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300'
-            )}
-          >
-            Activity
-          </button>
+        <div className="mt-4">
+          <SidePanelTabs tabs={CASE_TABS} value={activeTab} onChange={setActiveTab} />
         </div>
       </div>
 
@@ -618,7 +600,7 @@ function EditCaseContent({ caseData, onClose }: { caseData: CaseData; onClose: (
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Deal Information</h3>
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Client">
-                  <button onClick={() => setShowClientPanel(true)} className="text-sm text-blue-600 hover:text-blue-800">
+                  <button onClick={() => setShowClientPanel(true)} className="text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 cursor-pointer rounded px-3 py-1 -mx-3 -my-1 transition-colors">
                     {caseData.client.name}
                   </button>
                 </FormField>
@@ -668,27 +650,25 @@ function EditCaseContent({ caseData, onClose }: { caseData: CaseData; onClose: (
                   <BankDropdown value={bank} onChange={setBank} banks={banks} disabled={isTerminal} />
                 </FormField>
                 <FormField label="Mortgage Type *">
-                  <select
+                  <SearchableSelect
                     value={mortgageType}
-                    onChange={(e) => setMortgageType(e.target.value as MortgageType)}
+                    onChange={(val) => setMortgageType(val as MortgageType)}
+                    options={Object.entries(MORTGAGE_TYPE_LABELS).map(([value, label]) => ({ value, label }))}
                     disabled={isTerminal}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white disabled:opacity-50"
-                  >
-                    {Object.entries(MORTGAGE_TYPE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
+                    hideSearch
+                  />
                 </FormField>
                 <FormField label="Rate Type *">
-                  <select
+                  <SearchableSelect
                     value={rateType}
-                    onChange={(e) => setRateType(e.target.value as 'fixed' | 'variable')}
+                    onChange={(val) => setRateType(val as 'fixed' | 'variable')}
+                    options={[
+                      { value: 'fixed', label: 'Fixed' },
+                      { value: 'variable', label: 'Variable' },
+                    ]}
                     disabled={isTerminal}
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white disabled:opacity-50"
-                  >
-                    <option value="fixed">Fixed</option>
-                    <option value="variable">Variable</option>
-                  </select>
+                    hideSearch
+                  />
                 </FormField>
                 <FormField label="Rate (%) *">
                   <input
@@ -698,22 +678,21 @@ function EditCaseContent({ caseData, onClose }: { caseData: CaseData; onClose: (
                     onChange={(e) => setRate(sanitizeAmount(e.target.value))}
                     disabled={isTerminal}
                     placeholder="e.g., 4.99"
-                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] disabled:opacity-50"
+                    className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] disabled:opacity-50"
                   />
                 </FormField>
                 {rateType === 'fixed' && (
                   <FormField label="Fixed Period">
-                    <select
+                    <SearchableSelect
                       value={fixedPeriod}
-                      onChange={(e) => setFixedPeriod(e.target.value as FixedPeriod | '')}
+                      onChange={(val) => setFixedPeriod(val as FixedPeriod | '')}
+                      options={[
+                        { value: '', label: 'Select period...' },
+                        ...Object.entries(FIXED_PERIOD_LABELS).map(([value, label]) => ({ value, label })),
+                      ]}
                       disabled={isTerminal}
-                      className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] bg-white disabled:opacity-50"
-                    >
-                      <option value="">Select period...</option>
-                      {Object.entries(FIXED_PERIOD_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
+                      hideSearch
+                    />
                   </FormField>
                 )}
               </div>

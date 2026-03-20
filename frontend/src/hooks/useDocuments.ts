@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, ApiError } from '@/lib/api'
+import { api, withApiError } from '@/lib/api'
 import type {
   DocumentType,
   CreateDocumentTypeData,
@@ -65,18 +65,8 @@ export function useCreateDocumentType() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (data: CreateDocumentTypeData) => {
-      try {
-        return await api.post<DocumentType>('/document_types/', data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to create document type'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: (data: CreateDocumentTypeData) =>
+      withApiError(() => api.post<DocumentType>('/document_types/', data), 'Failed to create document type'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['documentTypes'] })
     },
@@ -90,18 +80,8 @@ export function useDeleteDocumentType() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (documentTypeId: string) => {
-      try {
-        await api.delete(`/document_types/${documentTypeId}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to delete document type'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: (documentTypeId: string) =>
+      withApiError(() => api.delete(`/document_types/${documentTypeId}/`), 'Failed to delete document type'),
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['documentTypes'] })
       queryClient.refetchQueries({ queryKey: ['clientDocuments'] })
@@ -130,24 +110,8 @@ export function useUploadClientDocument() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      clientId,
-      data,
-    }: {
-      clientId: string
-      data: CreateClientDocumentData
-    }) => {
-      try {
-        return await api.post<ClientDocument>(`/clients/${clientId}/documents/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to upload document'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ clientId, data }: { clientId: string; data: CreateClientDocumentData }) =>
+      withApiError(() => api.post<ClientDocument>(`/clients/${clientId}/documents/`, data), 'Failed to upload document'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['clientDocuments', variables.clientId] })
     },
@@ -161,18 +125,8 @@ export function useDeleteClientDocument() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ clientId, documentId }: { clientId: string; documentId: string }) => {
-      try {
-        await api.delete(`/clients/${clientId}/documents/${documentId}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to delete document'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ clientId, documentId }: { clientId: string; documentId: string }) =>
+      withApiError(() => api.delete(`/clients/${clientId}/documents/${documentId}/`), 'Failed to delete document'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['clientDocuments', variables.clientId] })
     },
@@ -199,24 +153,8 @@ export function useUploadCaseDocument() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({
-      caseId,
-      data,
-    }: {
-      caseId: string
-      data: CreateCaseDocumentData
-    }) => {
-      try {
-        return await api.post<CaseDocument>(`/cases/${caseId}/documents/`, data)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to upload document'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ caseId, data }: { caseId: string; data: CreateCaseDocumentData }) =>
+      withApiError(() => api.post<CaseDocument>(`/cases/${caseId}/documents/`, data), 'Failed to upload document'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['caseDocuments', variables.caseId] })
     },
@@ -230,18 +168,8 @@ export function useDeleteCaseDocument() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ caseId, documentId }: { caseId: string; documentId: string }) => {
-      try {
-        await api.delete(`/cases/${caseId}/documents/${documentId}/`)
-      } catch (error) {
-        if (error instanceof ApiError) {
-          throw new Error(
-            (error.data as { error?: string })?.error || 'Failed to delete document'
-          )
-        }
-        throw error
-      }
-    },
+    mutationFn: ({ caseId, documentId }: { caseId: string; documentId: string }) =>
+      withApiError(() => api.delete(`/cases/${caseId}/documents/${documentId}/`), 'Failed to delete document'),
     onSuccess: (_data, variables) => {
       queryClient.refetchQueries({ queryKey: ['caseDocuments', variables.caseId] })
     },

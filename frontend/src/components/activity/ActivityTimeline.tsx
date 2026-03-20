@@ -4,7 +4,8 @@
  */
 
 import { useState } from 'react'
-import { Loader2, Plus, AlertCircle } from 'lucide-react'
+import { Plus, AlertCircle } from 'lucide-react'
+import { ActivityTabSkeleton } from '@/components/ui/Skeleton'
 import { useActivityTimeline } from '@/hooks/useAudit'
 import { useAuth } from '@/contexts/AuthContext'
 import { ActivityTimelineGroup } from './ActivityTimelineGroup'
@@ -32,12 +33,7 @@ export function ActivityTimeline({ recordType, recordId, readOnly: readOnlyProp 
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-        <span className="ml-2 text-sm text-gray-500">Loading activity...</span>
-      </div>
-    )
+    return <ActivityTabSkeleton />
   }
 
   if (error) {
