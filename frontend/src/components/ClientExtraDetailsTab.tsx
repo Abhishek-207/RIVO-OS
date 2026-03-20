@@ -170,7 +170,6 @@ export function ClientExtraDetailsTab({ clientId, employmentType, viewOnly: view
   }
 
   const inputClass = "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#1e3a5f] disabled:bg-gray-50"
-  const selectClass = "w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none bg-white disabled:bg-gray-50"
 
   return (
     <div className="space-y-4">

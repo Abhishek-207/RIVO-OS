@@ -25,7 +25,7 @@ interface DateInputProps {
   size?: 'sm' | 'md'
 }
 
-function toDate(iso: string): Date | undefined {
+function toDate(iso: string | undefined): Date | undefined {
   if (!iso) return undefined
   const d = parse(iso, 'yyyy-MM-dd', new Date())
   return isValid(d) ? d : undefined
